@@ -6,7 +6,7 @@ import {GTAOPass} from 'three/addons/postprocessing/GTAOPass.js';
 export class TownOcclusion extends GTAOPass {
   constructor(world,width,height){
     super(world.scene,world.camera,width,height,{}, {radius:.60,thickness:.5,samples:16,scale:1,distanceFallOff:1},{samples:12,radius:5});
-    this.world=world;this.blendIntensity=1.05;this.dirty=true;this.previousCamera=new Matrix4();this.previousProjection=new Matrix4();this.previousTick=-1;
+    this.world=world;this.blendIntensity=1.20;this.dirty=true;this.previousCamera=new Matrix4();this.previousProjection=new Matrix4();this.previousTick=-1;
   }
   setSize(width,height){super.setSize(width,height);this.dirty=true;}
   render(renderer,writeBuffer,readBuffer,...rest){

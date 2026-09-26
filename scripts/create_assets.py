@@ -27,15 +27,31 @@ def material(name,color,rough=.85,texture=False):
         else:noise=rng.normal(0,.032,(n,n))+cloud(7)*.038+cloud(27)*.025+cloud(63)*.016
         ar=np.ones((n,n,4),dtype=np.float32)
         for i,c in enumerate(color):ar[:,:,i]=np.clip(c*(1+noise),0,1)
+        if name=='Warm lime plaster':
+            wear=np.clip((.13-y/n+cloud(9)*.035)*8,0,.5)
+            ar[:,:,:3]*=(1-wear[:,:,None]*np.array([.12,.17,.23]));noise+=wear*.09
         if name.startswith('Cypress'):ar[:,:,:3]=1.055*np.power(np.maximum(ar[:,:,:3],0),1/2.4)-.055
         if name=='Meadow ground':
             wx=x/n*13.7-6.85+5.5;wz=-(y/n*13.7-6.85)+5.5
             cover=np.sin(wx*.91+wz*.23)+np.cos(wz*1.17-wx*.31)+cloud(19)*.24
             cover=np.clip((cover+.65)/1.55,0,1);cover=cover*cover*(3-2*cover)
             grain=cloud(75)*.065+rng.normal(0,.023,(n,n))
-            bare=np.clip((cloud(12)-1.2)*2.0,0,.65)
-            for i,(earthy,grassy,dirt)in enumerate(zip((.25,.25,.091),(.28,.35,.12),(.27,.195,.093))):ar[:,:,i]=np.clip(((earthy*(1-cover)+grassy*cover)*(1-bare)+dirt*bare)*(1+grain),0,1)
-            noise=grain+cover*.045
+            bare=np.clip((cloud(12)-1.5)*1.3,0,.24)
+            for i,(earthy,grassy,dirt)in enumerate(zip((.28,.32,.089),(.34,.41,.13),(.28,.215,.11))):ar[:,:,i]=np.clip(((earthy*(1-cover)+grassy*cover)*(1-bare)+dirt*bare)*(1+grain),0,1)
+            # Fine, directional grass under the larger Blender tufts replaces
+            # broad featureless green/brown paint. Patches share the world cover
+            # field, with short exposed soil between their individual blades.
+            height=grain*.08+cover*.025
+            for blade in range(54000):
+                px,py=rng.integers(5,n-5,2)
+                if rng.random()>.45+cover[py,px]*.5:continue
+                angle=rng.uniform(0,math.tau);length=rng.uniform(2.0,6.0);bend=rng.uniform(-.5,.5)
+                colour=np.array([.40,.46,.16])*rng.uniform(.65,1.28)
+                for k in range(6):
+                    t=k/6;dx=math.cos(angle+t*bend)*length*t;dy=math.sin(angle+t*bend)*length*t
+                    xx=int(np.clip(px+dx,0,n-1));yy=int(np.clip(py+dy,0,n-1));weight=math.sin((t*.8+.1)*math.pi)*.66
+                    ar[yy,xx,:3]=ar[yy,xx,:3]*(1-weight)+colour*weight;height[yy,xx]+=.05*weight
+            noise=height
         if name=='Pond silt':
             px=x/n;py=y/n;nearest=np.full((n,n),10.);second=nearest.copy()
             for ox,oy in rng.uniform(-.1,1.1,(65,2)):
@@ -64,8 +80,9 @@ greens=[material('Foliage '+str(i),(.063+i*.023,.13+i*.027,.033+i*.014))for i in
 cypress_greens=[material('Cypress needles '+str(i),(.035+i*.015,.075+i*.020,.025+i*.008),texture=True)for i in range(5)]
 silvers=[material('Olive leaves '+str(i),(.12+i*.026,.19+i*.024,.075+i*.018))for i in range(4)]
 vines=[material('Vine leaves '+str(i),(.10+i*.028,.20+i*.028,.042+i*.017))for i in range(5)]
+shrubleaves=[material('Shrub leaves '+str(i),(.07+i*.028,.14+i*.030,.037+i*.018))for i in range(7)]
 fallen=[material('Fallen leaves '+str(i),c)for i,c in enumerate([(.56,.21,.035),(.70,.37,.07),(.41,.12,.025)])]
-gold=material('Ripe wheat',(.81,.59,.16));stem=material('Crop stems',(.27,.32,.055))
+gold=material('Ripe wheat',(.58,.31,.045));stem=material('Crop stems',(.27,.32,.055))
 flower=[material('Petal '+str(i),c)for i,c in enumerate([(.85,.59,.1),(.80,.77,.60),(.39,.22,.48)])]
 water=material('Water',(.026,.20,.225),.22)
 # Packed wave normals remain editable in Blender and drive the browser water.
@@ -95,7 +112,7 @@ class Mesh:
                 def shape(v):return math.copysign(abs(v)**.68,v)if mat in stones else v
                 vs.append((x+shape(math.sin(p)*math.cos(t))*s[0]*f,y+shape(math.sin(p)*math.sin(t))*s[1]*f,z+shape(math.cos(p))*s[2]*f))
         for j in range(rings):
-            for i in range(segments):self.face([vs[j*segments+i],vs[(j+1)*segments+i],vs[(j+1)*segments+(i+1)%segments],vs[j*segments+(i+1)%segments]],mat,not jitter or mat in stones or mat in greens or mat in silvers or mat in cypress_greens)
+            for i in range(segments):self.face([vs[j*segments+i],vs[(j+1)*segments+i],vs[(j+1)*segments+(i+1)%segments],vs[j*segments+(i+1)%segments]],mat,not jitter or mat in stones or mat in greens or mat in silvers or mat in cypress_greens or mat in shrubleaves)
     def tube(self,a,b,r,mat,r2=None,n=8):
         a=Vector(a);b=Vector(b);axis=(b-a).normalized();u=axis.cross(Vector((0,0,1)))
         if u.length<.01:u=axis.cross(Vector((0,1,0)))
@@ -104,6 +121,38 @@ class Mesh:
         bb=[b+r2*(math.cos(i*math.tau/n)*u+math.sin(i*math.tau/n)*v)for i in range(n)]
         for i in range(n):self.face([aa[i],aa[(i+1)%n],bb[(i+1)%n],bb[i]],mat,True)
         self.face(list(reversed(aa)),mat);self.face(bb,mat)
+    def rock(self,c,s,mat):
+        # Irregular chamfered blocks have broad fracture planes and narrow worn
+        # edges. Mixing these with pebbles avoids both spheres and jagged spikes.
+        q=random.uniform(.68,.84);points={};angle=random.uniform(-.33,.33)
+        def point(v):
+            key=tuple(v)
+            if key not in points:
+                u=[(v[i]+random.uniform(-.12,.12))*s[i]for i in range(3)]
+                points[key]=(c[0]+u[0]*math.cos(angle)-u[1]*math.sin(angle),c[1]+u[0]*math.sin(angle)+u[1]*math.cos(angle),c[2]+u[2])
+            return points[key]
+        def face(vs,smooth=False):
+            centre=sum((Vector(v)for v in vs),Vector())/len(vs);normal=(Vector(vs[1])-Vector(vs[0])).cross(Vector(vs[2])-Vector(vs[0]))
+            if normal.dot(centre)<0:vs=list(reversed(vs))
+            self.face([point(v)for v in vs],mat,smooth)
+        for axis in range(3):
+            others=[i for i in range(3)if i!=axis]
+            for sign in [-1,1]:
+                vs=[]
+                for a,b in [(-q,-q),(q,-q),(q,q),(-q,q)]:
+                    v=[0,0,0];v[axis]=sign;v[others[0]]=a;v[others[1]]=b;vs.append(v)
+                face(vs)
+        for a,b in [(0,1),(0,2),(1,2)]:
+            free=3-a-b
+            for sa in [-1,1]:
+                for sb in [-1,1]:
+                    vs=[]
+                    for first,end in [(True,-q),(True,q),(False,q),(False,-q)]:
+                        v=[0,0,0];v[a]=sa*(1 if first else q);v[b]=sb*(q if first else 1);v[free]=end;vs.append(v)
+                    face(vs,True)
+        for x in [-1,1]:
+            for y in [-1,1]:
+                for z in [-1,1]:face([[x,y*q,z*q],[x*q,y,z*q],[x*q,y*q,z]],True)
     def leaf(self,c,s,mat,angle=0):
         x,y,z=c;dx=math.cos(angle)*s;dy=math.sin(angle)*s;w=s*.30
         self.face([(x-dx,y-dy,z),(x-dy*.3,y+dx*.3,z+w),(x+dx,y+dy,z+w*.5),(x+dy*.3,y-dx*.3,z)],mat)
@@ -115,12 +164,17 @@ class Mesh:
             p.material_index=mat;p.use_smooth=sm
         # Share coincident vertices before calculating normals: curved parts must
         # shade continuously, while explicitly flat stone and plaster stay crisp.
-        bm=bmesh.new();bm.from_mesh(mesh);bmesh.ops.remove_doubles(bm,verts=list(bm.verts),dist=.000001);bm.to_mesh(mesh);bm.free();mesh.update()
+        bm=bmesh.new();bm.from_mesh(mesh);bmesh.ops.remove_doubles(bm,verts=list(bm.verts),dist=.000001)
+        bmesh.ops.delete(bm,geom=[v for v in bm.verts if not v.link_faces],context='VERTS')
+        bm.to_mesh(mesh);bm.free();mesh.update()
         uv=mesh.uv_layers.new(name='Surface UV')
         for p in mesh.polygons:
             normal=p.normal;axis=max(range(3),key=lambda a:abs(normal[a]));axes=[a for a in range(3)if a!=axis]
             for li in p.loop_indices:
-                v=mesh.vertices[mesh.loops[li].vertex_index].co;uv.data[li].uv=((v.x+6.85)/13.7,(v.y+6.85)/13.7)if p.material_index==ground else(v[axes[0]]*2,v[axes[1]]*2)
+                v=mesh.vertices[mesh.loops[li].vertex_index].co
+                if p.material_index==ground:uv.data[li].uv=((v.x+6.85)/13.7,(v.y+6.85)/13.7)
+                elif p.material_index==plaster:uv.data[li].uv=((v.x+1)/2.2 if axis==1 else(v.y+.6)/1.8,v.z/2.4)
+                else:uv.data[li].uv=(v[axes[0]]*2,v[axes[1]]*2)
         return obj
 
 def roof(m,c,width,depth,eave,rise):
@@ -220,15 +274,28 @@ def blossom(m,x,y,z,s=1):
         m.face([start,mid-v*.012*s,tip,mid+v*.012*s],mat,True)
     m.ellipsoid((x,y,z+h+.01),(.019*s,.019*s,.01*s),gold,6,3)
 def shrub(m,x,y,z,s=1):
-    for j in range(6):
-        a=j*2.4;xx=x+math.cos(a)*.15*s;yy=y+math.sin(a)*.15*s;zz=z+random.uniform(.12,.28)*s
-        m.ellipsoid((xx,yy,zz),(.10*s,.11*s,.10*s),greens[j%5],7,4,.20)
-        for i in range(25):m.leaf((xx+random.uniform(-.15,.15)*s,yy+random.uniform(-.15,.15)*s,zz+random.uniform(-.03,.14)*s),.065*s,greens[(i+j)%7],i*2.4)
+    # A small mix of upright branching herbs, with attached paired leaves.
+    # There is no spherical filler: overlapping stems form the plant's volume.
+    for j in range(3):
+        a=j*2.4;root=Vector((x+math.cos(a)*.12*s,y+math.sin(a)*.12*s,z));mat=shrubleaves[j*2]
+        for branch in range(4):
+            heading=a+branch*1.6;h=random.uniform(.24,.49)*s;axis=Vector((math.cos(heading)*.14*s,math.sin(heading)*.14*s,h));tip=root+axis
+            m.tube(root,tip,.006*s,woodlight,r2=.0018*s,n=4)
+            for node in range(5):
+                at=root+axis*(.20+node*.15)
+                for side in [-1,1]:
+                    angle=heading+side*random.uniform(.75,1.30);length=random.uniform(.085,.15)*s;direction=Vector((math.cos(angle),math.sin(angle),random.uniform(.10,.70))).normalized();across=Vector((-math.sin(angle),math.cos(angle),0));middle=at+direction*length*.48;width=length*.22
+                    left=middle-across*width;right=middle+across*width;ridge=middle+Vector((0,0,width*.35));end=at+direction*length
+                    for face in [[at,left,ridge],[at,ridge,right],[left,end,ridge],[ridge,end,right]]:m.face(face,mat,True)
+            if j==0 and branch%2==0:
+                for petal in range(5):
+                    a=petal*math.tau/5;m.leaf(tip+Vector((math.cos(a)*.016*s,math.sin(a)*.016*s,.008*s)),.021*s,flower[0],a)
 
 def ground_height(x,y):
     if (x+4.65)**2+(y-4.65)**2<2.1:return -.22
     rim=max(0,min(1,(max(abs(x),abs(y))-5.8)/1.05));rim=math.sin(rim*math.pi)
-    return .009+.009*math.sin(x*1.1+y*.5)+.009*math.cos(y*.9-x*.3)+rim*(.13+.08*math.sin(x*1.6+y*.6)+.06*math.cos(y*1.8-x*.3))
+    edge=max(0,(max(abs(x),abs(y))-6.2)/.65)*(.035+.08*math.sin(x*1.8+y*1.3))
+    return .009+.009*math.sin(x*1.1+y*.5)+.009*math.cos(y*.9-x*.3)+rim*(.13+.08*math.sin(x*1.6+y*.6)+.06*math.cos(y*1.8-x*.3))+edge
 
 # The fixed landscape. Playable tiles lie inside a wilder one-metre border.
 m=Mesh('Landscape');m.box((0,0,-2.78),(13.6,13.6,4.94),earth)
@@ -242,15 +309,20 @@ for side in range(4):
         p,q=[((a,-6.85),(b,-6.85)),((6.85,a),(6.85,b)),((b,6.85),(a,6.85)),((-6.85,b),(-6.85,a))][side]
         m.face([(p[0],p[1],ground_height(*p)),(p[0],p[1],-.32),(q[0],q[1],-.32),(q[0],q[1],ground_height(*q))],earth)
 for side in range(4):
+    rock_start=len(m.f)
     for rock in range(850):
         a=random.uniform(-6.65,6.65);zz=random.uniform(-5.14,-.19)
         p=[(a,-6.78,zz),(6.78,a,zz),(a,6.78,zz),(-6.78,a,zz)][side]
         breadth=random.uniform(.13,.40);height=random.uniform(.09,.32);depth=random.uniform(.12,.23)
         dims=(breadth,depth,height) if side%2==0 else (depth,breadth,height)
-        m.ellipsoid(p,dims,random.choice(stones),8,4,.13)
+        m.rock(p,dims,random.choice(stones))
         if rock%2==0:
             crumb=[p[0],p[1],p[2]-.16];crumb[1 if side%2==0 else 0]+=[-.10,.10,.10,-.10][side]
             m.ellipsoid(crumb,(.07,.07,.085),stones[2],6,4,.17)
+    # The solid earth cube completely hides these back faces. Keep every exposed
+    # bevel, but do not export triangles buried inside it on all four sides.
+    keep=[i for i in range(len(m.f)) if i<rock_start or not all(abs(m.v[v][0])<6.8 and abs(m.v[v][1])<6.8 and -.31>m.v[v][2]>-5.25 for v in m.f[i])]
+    m.f=[m.f[i]for i in keep];m.mi=[m.mi[i]for i in keep];m.smooth=[m.smooth[i]for i in keep]
     # Trailing roots and ivy down all four exposed faces.
     for i in range(50):
         t=random.uniform(-6.7,6.7);length=random.uniform(.4,3.1)
@@ -281,7 +353,7 @@ for i in range(43):
     m.ellipsoid((x,y,.07),(.19,.15,.15),random.choice(stones),8,4,.3)
     if i%2==0:
         for j in range(5):m.tube((x,y,.05),(x+random.uniform(-.15,.15),y+random.uniform(-.15,.15),random.uniform(.3,.65)),.012,greens[4],r2=.003,n=4)
-for x,y in [(5.3,5.4),(5.8,5.4),(5.5,6.0)]:m.ellipsoid((x,y,.23),(.45,.48,.5),stones[5],9,5,.30)
+for x,y in [(5.3,5.4),(5.8,5.4),(5.5,6.0)]:m.rock((x,y,.12),(.41,.44,.36),stones[4])
 m.finish()
 m=Mesh('Pond')
 for i in range(64):
@@ -319,6 +391,16 @@ for variant in range(3):
 m=Mesh('Olive');olive(m,0,0,0,1);m.finish()
 m=Mesh('Cypress');cypress(m,0,0,0,1);m.finish()
 m=Mesh('Shrub');shrub(m,0,0,0,1);m.finish()
+m=Mesh('Meadow3')
+# Designed pockets of several plant heights replace sparse corner patches. The
+# browser chooses clear field corners, pond margins and foreground edge tiles.
+for x,y,s in [(-.20,.19,.95),(.18,.19,1.15),(0,-.16,.88)]:shrub(m,x,y,.01,s)
+for i in range(65):
+    a=i*2.4;r=random.uniform(.08,.43);x=math.cos(a)*r;y=math.sin(a)*r
+    tuft(m,x,y,.01,random.uniform(.9,1.55))
+    if i%4==0 and x<.10:blossom(m,x,y,.025,random.uniform(.9,1.3))
+for x,y,s in [(.29,-.26,.14),(-.31,-.17,.09),(.05,.35,.08)]:m.rock((x,y,s*.45),(s,s*.73,s*.7),stones[3])
+m.finish()
 m=Mesh('Rock');m.ellipsoid((0,0,.26),(.46,.49,.53),stones[5],9,6,.22);m.finish()
 
 for variant in range(3):
@@ -341,7 +423,7 @@ for variant in range(3):
         for k,p in enumerate(polygon):
             for adjacent in [polygon[(k-1)%len(polygon)],polygon[(k+1)%len(polygon)]]:
                 top.append((cx+(p[0]*.94+adjacent[0]*.06-cx)*.96,cy+(p[1]*.94+adjacent[1]*.06-cy)*.96,.076))
-        mat=random.choice(stones[4:]);m.face(top,mat)
+        mat=random.choice(stones[2:6]);m.face(top,mat)
         lower=[(cx+(p[0]-cx)*1.035,cy+(p[1]-cy)*1.035,.057)for p in top]
         for k in range(len(top)):m.face([top[k],lower[k],lower[(k+1)%len(top)],top[(k+1)%len(top)]],mat)
     m.finish()
@@ -385,9 +467,9 @@ for i in range(8):m.box((-.5+i*.16,-.85,.09),(.15,.22,.13),stones[4+i%3])
 # A vine covered pergola and everyday pots, bench, and doorstep.
 for x in [-.79,.73]:m.tube((x,-.86,.13),(x,-.86,1.03),.033,wood,n=7)
 for i in range(7):m.box((-.8+i*.25,-.67,1.055),(.045,.75,.055),woodlight)
-for i in range(80):
+for i in range(180):
     x=random.uniform(-.86,.86);y=random.uniform(-1.0,-.35)
-    m.leaf((x,y,1.09+random.uniform(-.035,.065)),.08,vines[i%5],i*2.4)
+    m.leaf((x,y,1.09+random.uniform(-.035,.115)),.095,vines[i%5],i*2.4)
 pot(m,-.65,-.77,.14,1,True);pot(m,.70,-.68,.14,.85,True)
 m.box((-.9,.28,.36),(.17,.63,.05),woodlight)
 for y in [.06,.49]:m.box((-.9,y,.22),(.07,.06,.30),wood)
@@ -505,11 +587,11 @@ roof(m,(1.09,1.1,0),.65,.65,.69,.18)
 m.box((1.1,1.15,.20),(.5,.4,.05),woodlight)
 m.finish()
 m=Mesh('Crops')
-for row in range(18):
-    for col in range(29):
-        x=-1.25+col*.091+random.uniform(-.03,.03);y=-1.25+row*.150+random.uniform(-.04,.04)
+for row in range(24):
+    for col in range(36):
+        x=-1.25+col*.072+random.uniform(-.025,.025);y=-1.25+row*.111+random.uniform(-.035,.035)
         if x>.7 and y>.7:continue
-        h=random.uniform(.47,.75)
+        h=random.uniform(.46,.82)
         bend=random.uniform(-.09,.09);m.tube((x,y,0),(x+bend*.3,y,h*.55),.006,stem,n=4);m.tube((x+bend*.3,y,h*.55),(x+bend,y,h),.0045,stem,n=4)
         for j in range(2):
             a=j*2.4+col;u=math.cos(a);v=math.sin(a);z=.16+j*.13;blade=[]
@@ -518,12 +600,12 @@ for row in range(18):
                 blade.append([(x+u*t*.18-v*w,y+v*t*.18+u*w,zz),(x+u*t*.18+v*w,y+v*t*.18-u*w,zz)])
             for k in range(4):m.face([blade[k][0],blade[k+1][0],blade[k+1][1],blade[k][1]],greens[4],True)
         m.tube((x+bend,y,h-.025),(x+bend,y,h+.13),.006,gold,r2=.003,n=5)
-        for j in range(10):
-            side=-1 if j%2 else 1;z=h+j*.012;cx=x+bend+side*.012;cy=y
-            vertices=[(cx,cy,z-.017),(cx,cy,z+.029),(cx-.011,cy,z+.005),(cx,cy-.011,z+.005),(cx+.011,cy,z+.005),(cx,cy+.011,z+.005)]
+        for j in range(6):
+            side=-1 if j%2 else 1;z=h+j*.022;cx=x+bend+side*.016;cy=y
+            vertices=[(cx,cy,z-.025),(cx,cy,z+.042),(cx-.016,cy,z+.005),(cx,cy-.016,z+.005),(cx+.016,cy,z+.005),(cx,cy+.016,z+.005)]
             for k in range(4):
                 a=vertices[2+k];b=vertices[2+(k+1)%4];m.face([vertices[0],b,a],gold,True);m.face([vertices[1],a,b],gold,True)
-            if j in [5,8]:m.tube((cx,cy,z),(cx+side*.027,cy,z+.07),.0012,gold,n=3)
+            if j in [3,5]:m.tube((cx,cy,z),(cx+side*.03,cy,z+.075),.0012,gold,n=3)
 m.finish()
 m=Mesh('Stubble')
 for row in range(18):

@@ -33,3 +33,5 @@ Editable models and packed surface textures are in `assets/little-rome.blend`. R
 ```
 
 All asset geometry is created in Blender, including residents and their articulated parts. The browser instances the exported GLB meshes. See `development-plan.md` for verified milestones and current work.
+
+See [validation.md](validation.md) for the automated scenario results, measured performance and validation limits. The numbered [progress gallery](progress/README.md) contains actual browser captures of each major iteration.

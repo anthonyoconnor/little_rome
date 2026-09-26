@@ -23,7 +23,9 @@ export function wetRoads(world,roads){
       float damp=noise(wetPosition.xz*1.15)*.7+noise(wetPosition.xz*3.4)*.3;
       float film=.06+.89*smoothstep(.46,.65,damp);
     `).replace('vec4( blendOverlay( base.rgb, color ), 1.0 )','vec4( base.rgb, strength * film )')};
-  const mesh=new Reflector(geometry,{textureWidth:768,textureHeight:512,multisample:0,clipBias:.002,color:new THREE.Color(.65,.70,.75),shader});
+  // The film is above the slabs. Exact clipping excludes those slabs from their
+  // own reflection rather than reflecting an opaque copy of the road surface.
+  const mesh=new Reflector(geometry,{textureWidth:768,textureHeight:512,multisample:0,clipBias:0,color:new THREE.Color(.65,.70,.75),shader});
   mesh.rotation.x=-Math.PI/2;mesh.position.y=.081;mesh.material.transparent=true;mesh.material.depthWrite=false;mesh.visible=false;
   const update=mesh.onBeforeRender,previousCamera=new THREE.Matrix4(),previousProjection=new THREE.Matrix4();let previousTick=-1;
   mesh.onBeforeRender=function(renderer,scene,camera){
