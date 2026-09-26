@@ -52,7 +52,7 @@ export class Diorama {
   async load(){
     const gltf=await new GLTFLoader().loadAsync('/assets/little-rome.glb');this.library=gltf.scene;const clip=gltf.animations.find(c=>c.name==='Walk')||gltf.animations[0];if(clip)this.walkClip=new THREE.AnimationClip('Walk',clip.duration,clip.tracks.filter(t=>t.name.endsWith('.quaternion')||t.name==='Hips.position'));
     this.library.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;if(o.material.name.startsWith('Foliage')||o.material.name.startsWith('Olive')||o.material.name.startsWith('Vine')||o.material.name.startsWith('Shrub')||o.material.name.startsWith('Fallen')||o.material.name.startsWith('Petal')||o.material.name.startsWith('Cypress needles'))o.material.side=THREE.DoubleSide;if(o.material.map)o.material.map.anisotropy=8;if(o.material.name==='Water'){o.material.metalness=.20;o.material.roughness=.22;if(o.material.normalScale)o.material.normalScale.set(.20,.20);}}});
-    for(const name of ['Landscape','WildBorder','Pond']){const obj=this.asset(name);this.scene.add(obj);if(name==='Pond')this.pond=obj;}this.pondReflection=pondWater(this);
+    for(const name of ['Landscape','WildBorder','Pond','PondBed','PondBank']){const obj=this.asset(name);this.scene.add(obj);if(name==='Pond')this.pond=obj;if(name==='PondBed')this.pondBed=obj;if(name==='PondBank')this.pondBank=obj;}this.pondReflection=pondWater(this);
     this.materials=new Map();this.library.traverse(o=>{if(o.isMesh&&!this.materials.has(o.material.uuid))this.materials.set(o.material.uuid,{m:o.material,color:o.material.color.clone(),roughness:o.material.roughness});});
     this.waterNormals=[...this.materials.values()].filter(({m})=>m.name==='Water'&&m.normalMap).map(({m})=>m.normalMap);
     const rainGeo=new THREE.BufferGeometry();const rain=new Float32Array(800*6);for(let i=0;i<800;i++){const x=((i*17.13)%16)-8,z=((i*13.71)%16)-8,y=(i*.317)%8;rain.set([x,y,z,x-.045,y+.25,z+.025],i*6);}rainGeo.setAttribute('position',new THREE.BufferAttribute(rain,3));
@@ -132,14 +132,16 @@ export class Diorama {
   warningSprite(){const c=document.createElement('canvas');c.width=c.height=96;const ctx=c.getContext('2d');ctx.fillStyle='#ac7934';ctx.strokeStyle='#f9db95';ctx.lineWidth=4;ctx.beginPath();ctx.arc(48,48,40,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.fillStyle='#fff0ca';ctx.beginPath();ctx.moveTo(48,22);ctx.bezierCurveTo(40,36,31,45,31,56);ctx.bezierCurveTo(31,80,66,80,66,56);ctx.bezierCurveTo(66,45,56,35,48,22);ctx.fill();const m=new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c),depthTest:false,depthWrite:false,transparent:true});m.map.colorSpace=THREE.SRGBColorSpace;const s=new THREE.Sprite(m);s.scale.set(.40,.40,1);return s;}
   setState(state){
     // At 4×, several simulation updates can land in one display frame. Refresh
-    // expensive secondary views at most every 75 ms; people and rain still move
+    // expensive secondary views at most every 200 ms at town distance (75 ms
+    // during close inspection); people, water and rain still move
     // every frame. Explicit scrubs and jumps update all visual state immediately.
     this.previewPlants(null);const now=performance.now(),jump=this.snapPeople||!this.state||Math.abs(state.tick-this.state.tick)>8;
-    if(this.state?.tick!==state.tick&&(jump||now-this.lastEffects>=75)){this.effectsRevision++;this.lastEffects=now;this.renderer.shadowMap.needsUpdate=true;}
+    const refresh=this.camera.position.distanceTo(this.controls.target)<8?75:200;
+    if(this.state?.tick!==state.tick&&(jump||now-this.lastEffects>=refresh)){this.effectsRevision++;this.lastEffects=now;this.renderer.shadowMap.needsUpdate=true;}
     this.previousState=!this.snapPeople&&this.state?.tick===state.tick-1?this.state:null;this.snapPeople=false;this.state=state;this.planning=false;this.grid.visible=false;this.markers.visible=false;if(this.ghost)this.ghost.visible=false;
   }
   showRoute(p){this.selectedPerson=p?.id;this.personRing.visible=!!p;if(p)this.personRing.position.copy(this.world(p)).setY(.12);if(this.routeLine){this.scene.remove(this.routeLine);this.routeLine.geometry.dispose();this.routeLine.material.dispose();this.routeLine=null;}if(!p?.path?.length)return;const pts=[{x:p.x,z:p.z},...p.path.slice(p.pathIndex)].map(n=>this.world(n).setY(.15));this.routeLine=new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),new THREE.LineBasicMaterial({color:'#f8d586',transparent:true,opacity:.85}));this.scene.add(this.routeLine);}
-  resetSeason(){this.scene.background.set('#67888b');this.scene.fog.color.copy(this.scene.background);this.scene.fog.near=42;this.scene.fog.far=105;this.floor.material.color.copy(this.scene.background);this.sun.color.set('#ffdfb4');this.sun.intensity=5.2;this.ambient.intensity=.82;this.rain.visible=false;this.pond.position.y=0;this.pondReflection.position.y=.032;this.pondReflection.material.uniforms.time.value=0;this.previousState=null;if(this.litter)this.litter.visible=false;if(this.wetRoad)this.wetRoad.visible=false;for(const {m,color,roughness}of this.materials.values()){m.color.copy(color);m.roughness=roughness;if(m.name==='Window glow')m.emissiveIntensity=.1;}}
+  resetSeason(){this.scene.background.set('#67888b');this.scene.fog.color.copy(this.scene.background);this.scene.fog.near=42;this.scene.fog.far=105;this.floor.material.color.copy(this.scene.background);this.sun.color.set('#ffdfb4');this.sun.intensity=5.2;this.ambient.intensity=.82;this.rain.visible=false;this.pond.position.y=0;this.pondReflection.position.y=.032;this.pondReflection.material.uniforms.time.value=0;this.pondReflection.material.uniforms.rain.value=0;this.pondReflection.material.uniforms.level.value=.032;this.previousState=null;if(this.litter)this.litter.visible=false;if(this.wetRoad)this.wetRoad.visible=false;for(const {m,color,roughness}of this.materials.values()){m.color.copy(color);m.roughness=roughness;if(m.name==='Window glow')m.emissiveIntensity=.1;}}
   applyState(){
     const s=this.state;if(!s)return;
     const fraction=this.fraction??1,visualTick=this.previousState?s.tick-1+fraction:s.tick,winterGlow=s.season==='Winter'?THREE.MathUtils.smoothstep(s.day-42,0,1.2):0;
@@ -193,7 +195,7 @@ export class Diorama {
       if(m.name==='Window glow')m.emissiveIntensity=.06+2.4*winterGlow;
     }
     }
-    this.pondReflection.material.uniforms.time.value=visualTick*.06;if(this.wetRoad)this.wetRoad.material.uniforms.time.value=visualTick*.09;
+    this.pondReflection.material.uniforms.time.value=visualTick/8;this.pondReflection.material.uniforms.rain.value=this.rain.material.opacity/.18;this.pondReflection.material.uniforms.level.value=this.pondReflection.position.y;if(this.wetRoad)this.wetRoad.material.uniforms.time.value=visualTick*.09;
     for(const normal of this.waterNormals)normal.offset.set(visualTick*.00012,visualTick*.00009);
     if(this.rain.visible){const pos=this.rain.geometry.attributes.position;for(let i=0;i<800;i++){const y=((i*.317-visualTick*.13)%8+8)%8;pos.array[i*6+1]=y;pos.array[i*6+4]=y+.25;}pos.needsUpdate=true;}
   }

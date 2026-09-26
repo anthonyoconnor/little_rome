@@ -36,6 +36,23 @@ Outcome: six supplementary close-up concept sheets preserving the original town 
 - This milestone prepares concept references; it does not change the running game or require a game progress screenshot.
 - Evidence: six sheets generated from the original seasonal references, visually inspected and saved with a gallery, exact prompts and provenance. All six PNG files pass signature/dimension checks (1536×1024 or 1672×941); copied files match the generated originals by SHA-256. The original town art and game files are unchanged.
 
+## M6 — Water and a living shoreline · in progress
+Outcome: a pond with readable shallows/depth, soft overlapping ripples, seasonal rain impacts and detailed natural banks matching landscape sheets 01–02.
+- Rebuild editable Blender basin, stones, reeds and lily pads; retain the pond footprint and planning obstacles.
+- Verify actual summer/winter close-ups, a second angle, animated water, pause/rewind and normal-view performance.
+- Obtain fresh read-only critique; record one representative capture and a Git checkpoint.
+- First implementation evidence (`0009.png`): Blender basin, gravel, fractured banks, curved reeds and notched pads; transparent depth-dependent water, animated caustics/reflections and rain impacts. Pixel checks pass for movement, pause and exact rewind; drought lowers the surface and planning resets it. Winter medians: 29.6 / 29.9 / 28.4 ms paused / 1× / 4×. Initial review improved water from 4.5 to 6.5 and shore from 3.5 to 6/10; subsequent corrections dissolve polygonal bank seams, fracture stones and break rain rings. Continue integration with the planting and terrain passes before final review.
+
+## M7 — Layered Mediterranean planting · in progress
+Outcome: detailed olive/cypress trees, herbs, grasses and mixed planting matching sheets 03–04.
+- Improve branch/leaf silhouettes and soil contact without obscuring placement or resident work.
+- Check seasonal close-ups, town framing, preview clearing and performance; record critique, one progress capture and checkpoint.
+
+## M8 — Tangible terrain and paths · planned
+Outcome: fractured limestone/soil edges and worn dry/wet paths with field-border detail matching sheets 05–06.
+- Preserve the cube and buildable surface while improving rock variation, roots, paving and field transitions.
+- Validate all six visual states, alternate/close views, full year/retry and performance; record final critique, progress capture and checkpoint.
+
 ## Visual iteration record
 The first M3 visual checkpoint adds textured Blender surfaces, smooth roof tiles, denser planting, irregular cliff stones, seasonal lighting, animated residents, and drought feedback. The six-state browser check passes, including pause, imported animation, a second camera angle, close inspection, and a compact viewport. Winter median frame: 30.1 ms at 1440×900; p95 34.1 ms. Record this iteration as `0003.png`.
 

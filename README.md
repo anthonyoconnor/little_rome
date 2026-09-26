@@ -11,6 +11,7 @@ npm.cmd test
 npm.cmd run test:browser
 npm.cmd run test:visual
 npm.cmd run test:residents
+npm.cmd run test:landscape
 npm.cmd run capture
 npm.cmd run build
 ```

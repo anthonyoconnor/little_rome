@@ -10,6 +10,7 @@
     "test:browser": "node scripts/browser-check.mjs && node scripts/scenarios.mjs",
     "test:visual": "node scripts/visual-check.mjs",
     "test:residents": "node scripts/resident-check.mjs",
+    "test:landscape": "node scripts/landscape-check.mjs --all --performance",
     "capture": "node scripts/browser-check.mjs --capture"
   },
   "dependencies": {

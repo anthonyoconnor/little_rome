@@ -30,6 +30,13 @@ def material(name,color,rough=.85,texture=False):
         ar=np.ones((n,n,4),dtype=np.float32)
         for i,c in enumerate(color):ar[:,:,i]=np.clip(c*(1+noise),0,1)
         if name=='Resident skin':ar[:,:,:3]=np.clip(.96*(1+noise[:,:,None]),0,1)
+        if name.startswith('Limestone pond'):
+            pores=np.zeros((n,n));stains=cloud(9)*.12+cloud(29)*.08
+            for pit in range(160):
+                px,py=rng.uniform(0,n,2);r=rng.uniform(.8,4.4);dist=((x-px)/r)**2+((y-py)/(r*rng.uniform(.5,1.4)))**2
+                pores+=np.exp(-dist*2)*rng.uniform(.15,.55)
+            variation=np.clip(1+stains-pores,.38,1.20)
+            ar[:,:,:3]*=variation[:,:,None];ar[:,:,0]*=1+np.maximum(stains,0)*.25;noise+=stains*.13-pores*.27
         if name=='Warm lime plaster':
             wear=np.clip((.13-y/n+cloud(9)*.035)*8,0,.5)
             ar[:,:,:3]*=(1-wear[:,:,None]*np.array([.12,.17,.23]));noise+=wear*.09
@@ -296,10 +303,11 @@ def shrub(m,x,y,z,s=1):
                     a=petal*math.tau/5;m.leaf(tip+Vector((math.cos(a)*.016*s,math.sin(a)*.016*s,.008*s)),.021*s,flower[0],a)
 
 def ground_height(x,y):
-    if (x+4.65)**2+(y-4.65)**2<2.1:return -.22
     rim=max(0,min(1,(max(abs(x),abs(y))-5.8)/1.05));rim=math.sin(rim*math.pi)
     edge=max(0,(max(abs(x),abs(y))-6.2)/.65)*(.035+.08*math.sin(x*1.8+y*1.3))
-    return .009+.009*math.sin(x*1.1+y*.5)+.009*math.cos(y*.9-x*.3)+rim*(.13+.08*math.sin(x*1.6+y*.6)+.06*math.cos(y*1.8-x*.3))+edge
+    h=.009+.009*math.sin(x*1.1+y*.5)+.009*math.cos(y*.9-x*.3)+rim*(.13+.08*math.sin(x*1.6+y*.6)+.06*math.cos(y*1.8-x*.3))+edge
+    distance=math.hypot(x+4.65,y-4.65);sink=max(0,min(1,(1.99-distance)/.40));sink=sink*sink*(3-2*sink)
+    return h*(1-sink)-.42*sink
 
 # The fixed landscape. Playable tiles lie inside a wilder one-metre border.
 m=Mesh('Landscape');m.box((0,0,-2.78),(13.6,13.6,4.94),earth)
@@ -344,31 +352,12 @@ for i in range(130):
     x=math.cos(a)*r;y=math.sin(a)*r
     if abs(x)<5.8 and abs(y)<5.8:continue
     m.ellipsoid((x,y,.035),(random.uniform(.1,.3),random.uniform(.1,.3),random.uniform(.08,.22)),random.choice(stones),7,4,.25)
-# Pond exactly matches the unbuildable north-west tiles (game z maps to -Blender y).
-for ring in range(5):
-    for i in range(64):
-        points=[]
-        for r,k in [(ring,i),(ring+1,i),(ring+1,i+1),(ring,i+1)]:
-            a=k*math.tau/64;t=r/5;radius=(1.39+.09*math.sin(a*3)+.045*math.sin(a*7))*t
-            points.append((-4.65+math.cos(a)*radius,4.65+math.sin(a)*radius,-.15+.18*t*t+.025*math.cos(a)*t))
-        m.face(points,pond_silt,True)
-for i in range(43):
-    a=i*math.tau/43;r=1.40+.09*math.sin(a*3)+.045*math.sin(a*7);x=-4.65+math.cos(a)*r;y=4.65+math.sin(a)*r
-    m.ellipsoid((x,y,.07),(.19,.15,.15),random.choice(stones),8,4,.3)
-    if i%2==0:
-        for j in range(5):m.tube((x,y,.05),(x+random.uniform(-.15,.15),y+random.uniform(-.15,.15),random.uniform(.3,.65)),.012,greens[4],r2=.003,n=4)
 for x,y in [(5.3,5.4),(5.8,5.4),(5.5,6.0)]:m.rock((x,y,.12),(.41,.44,.36),stones[4])
 m.finish()
-m=Mesh('Pond')
-for i in range(64):
-    arc=[]
-    for k in [i,i+1]:
-        a=k*math.tau/64;r=1.36+.09*math.sin(a*3)+.045*math.sin(a*7);arc.append((-4.65+math.cos(a)*r,4.65+math.sin(a)*r,.029))
-    m.face([(-4.65,4.65,.029),*arc],water)
-for i in range(22):
-    a=random.random()*math.tau;r=random.random()*1.15;x=-4.65+math.cos(a)*r;y=4.65+math.sin(a)*r
-    m.tube((x,y,.06),(x,y,.064),random.uniform(.035,.10),greens[5],n=9)
-m.finish()
+import sys
+sys.path.insert(0,str(ROOT/'scripts'))
+from pond_assets import build_pond
+build_pond(Mesh,material,{'stones':stones,'water':water,'greens':greens,'silt':pond_silt,'wood':wood,'ground':ground,'flower':flower},MATS)
 m=Mesh('WildBorder')
 for i in range(1400):
     side=i%4;t=random.uniform(-6.6,6.6);d=random.uniform(6.05,6.7)
