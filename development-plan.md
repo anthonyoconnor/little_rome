@@ -21,4 +21,6 @@ Outcome: refine lighting, assets, animation, seasonal feedback, and restrained c
 - Record one selected screenshot per major visual iteration and commit logical checkpoints.
 
 ## Current next action
-Refine the sparse planting, repetitive cliff stone, dark roofs, small residents, and weak seasonal atmosphere identified by the fresh visual critic. All validation is automated; enjoyment is not claimed as tested by automation.
+The first M3 visual checkpoint adds textured Blender surfaces, smooth roof tiles, denser planting, irregular cliff stones, seasonal lighting, animated residents, and drought feedback. The six-state browser check passes, including pause, imported animation, a second camera angle, close inspection, and a compact viewport. Winter median frame: 30.1 ms at 1440×900; p95 34.1 ms. Record this iteration as `0003.png`.
+
+Next: strengthen wet surface reflections and work poses, introduce more visible crop variety, and complete a fresh critique against the original art. All validation is automated; enjoyment is not claimed as tested by automation.

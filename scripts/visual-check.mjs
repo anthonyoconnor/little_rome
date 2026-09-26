@@ -1,0 +1,26 @@
+import {chromium}from '@playwright/test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs/promises';
+const browser=await chromium.launch({channel:'chrome',headless:true,args:['--use-angle=d3d11','--disable-gpu-sandbox']});
+const page=await browser.newPage({viewport:{width:1440,height:900},deviceScaleFactor:1});
+const errors=[];page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error')errors.push(m.text());});
+const frames=async n=>page.evaluate(n=>new Promise(resolve=>{let i=0;function f(){if(++i>=n)resolve();else requestAnimationFrame(f);}requestAnimationFrame(f);}),n);
+const capture=async name=>{await frames(3);await page.screenshot({path:`artifacts/${name}.png`});};
+try{
+ await fs.mkdir('artifacts',{recursive:true});await page.goto('http://127.0.0.1:5173');await page.waitForFunction(()=>window.__rome?.ready,{timeout:30000});await frames(3);
+ const render=await page.evaluate(()=>{const gl=window.__rome.scene.renderer.getContext(),a=new Uint8Array(160*160*4);gl.readPixels(640,380,160,160,gl.RGBA,gl.UNSIGNED_BYTE,a);let min=255,max=0;for(let i=0;i<a.length;i+=4){min=Math.min(min,a[i]);max=Math.max(max,a[i]);}return {range:max-min,tracks:window.__rome.scene.walkClip?.tracks.length};});assert.ok(render.range>80,'Rendered world must contain geometry, not a blank canvas');assert.equal(render.tracks,4,'Blender walk cycle imported');
+ await page.locator('#closeBrief').click();await page.evaluate(()=>window.__rome.select('b16'));await page.locator('#removeBuilding').click();await page.locator('[data-tool=well]').click();await page.keyboard.press('r');await page.keyboard.press('r');await page.keyboard.press('r');const p=await page.evaluate(()=>window.__rome.projectTile(5,7));await page.mouse.move(p.x,p.y);await capture('planning-final');await page.keyboard.press('Escape');await page.locator('#undo').click();
+ await page.locator('#go').click();await page.evaluate(()=>window.__rome.advance(3.2));await capture('spring-final');
+ const before=await page.evaluate(()=>window.__rome.getState().people.map(p=>({id:p.id,x:p.x,z:p.z,carry:p.carry})));await page.evaluate(()=>window.__rome.advance(.15));await capture('spring-motion');const after=await page.evaluate(()=>window.__rome.getState().people.map(p=>({id:p.id,x:p.x,z:p.z,carry:p.carry})));assert.notDeepEqual(before,after);
+ await page.evaluate(()=>window.__rome.advance(14.4));await capture('summer-final');
+ await page.evaluate(()=>{window.__rome.scene.rotate(Math.PI/2);});await capture('alternate-angle');
+ await page.evaluate(()=>{const s=window.__rome.scene;s.camera.position.set(-8,9,10);s.controls.target.set(0,.3,0);s.controls.update();});await capture('close-final');
+ await page.evaluate(()=>{window.__rome.scene.resetCamera();window.__rome.advance(17);});await capture('autumn-final');
+ await page.evaluate(()=>window.__rome.advance(10.3));await capture('winter-final');
+ const paused=await page.evaluate(()=>({state:window.__rome.getState(),rain:Array.from(window.__rome.scene.rain.geometry.attributes.position.array.slice(0,18))}));await frames(12);assert.deepEqual(await page.evaluate(()=>({state:window.__rome.getState(),rain:Array.from(window.__rome.scene.rain.geometry.attributes.position.array.slice(0,18))})),paused,'Pause freezes residents, supplies, rain, and weather');
+ await page.evaluate(()=>{window.__rome.scene.frames=[];});await frames(125);const performance=await page.evaluate(()=>window.__rome.metrics());assert.ok(performance.medianMs<33,JSON.stringify(performance));
+ await page.evaluate(async()=>{const {starterLayout}=await import('/src/layout.js');const l=starterLayout('dry');l.objects=l.objects.filter(b=>b.id!=='b17');window.__rome.loadLayout(l);window.__rome.start();window.__rome.advance(27.65);});
+ assert.ok(await page.evaluate(()=>window.__rome.getState().buildings.some(b=>b.type==='field'&&b.dead)));await capture('drought-final');
+ await page.setViewportSize({width:900,height:720});await page.evaluate(()=>window.__rome.revise());await capture('compact-viewport');assert.ok(await page.locator('#go').isVisible());assert.ok(await page.locator('[data-tool=home]').isVisible());
+ assert.deepEqual(errors,[]);await fs.writeFile('artifacts/visual-report.json',JSON.stringify({ok:true,performance,render,states:['planning','spring','summer','autumn','winter','drought'],motion:true,pause:true,alternateAngle:true,closeView:true,compactViewport:true},null,2));console.log(JSON.stringify({ok:true,performance,render}));
+}finally{await browser.close();}

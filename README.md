@@ -9,6 +9,7 @@ npm.cmd install --cache .cache/npm
 npm.cmd run dev
 npm.cmd test
 npm.cmd run test:browser
+npm.cmd run test:visual
 npm.cmd run capture
 npm.cmd run build
 ```

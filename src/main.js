@@ -15,11 +15,12 @@ const icon=(name)=>`<svg viewBox="0 0 24 24" aria-hidden="true">${{
   reset:'<path d="M4 11a8 8 0 1 1 2 6 M4 4v7h7"/>',sound:'<path d="m3 9 5 0 5-5v16l-5-5H3Z M17 8a7 7 0 0 1 0 8 M20 5a12 12 0 0 1 0 14"/>',help:'<path d="M9 8a3 3 0 1 1 4 3c-1 0-1 2-1 3 M12 18h.01"/><circle cx="12" cy="12" r="10"/>'
 }[name]||''}</svg>`;
 const $=id=>document.getElementById(id);
-let planner=new Planner(),tool=null,rotation=0,moveId=null,selection=null,phase='planning',run=null,speed=1,paused=false,toastTimer,lastUiTick=-1,sound=null;
+let planner=new Planner(),tool=null,rotation=0,moveId=null,selection=null,phase='planning',run=null,speed=1,paused=false,toastTimer,lastUiTick=-1,sound=null,lastHover=null;
+const laurel=`<svg viewBox="0 0 48 52" aria-hidden="true"><path d="M22 47C5 37 5 16 17 5M26 47C43 37 43 16 31 5"/>${[[12,12,-35],[8,20,-50],[8,29,-65],[12,37,-75],[18,43,-85]].map(([x,y,a])=>`<ellipse cx="${x}" cy="${y}" rx="2.5" ry="5.3" transform="rotate(${a} ${x} ${y})"/><ellipse cx="${48-x}" cy="${y}" rx="2.5" ry="5.3" transform="rotate(${-a} ${48-x} ${y})"/>`).join('')}</svg>`;
 document.querySelector('#app').innerHTML=`
 <div id="world"></div>
 <div class="overlay">
-  <header class="brand planning"><div class="wreath">❧</div><div><h1>LITTLE ROME</h1><small>A year in a little world</small></div></header>
+  <header class="brand planning"><div class="wreath">${laurel}</div><div><h1>LITTLE ROME</h1><small>A year in a little world</small></div></header>
   <div class="budget paper planning"><div><span>Starting purse</span><strong id="budgetTotal">80</strong></div><div class="divider"></div><div><span>Coins remaining</span><strong class="remaining" id="balance">4</strong></div></div>
   <aside class="brief paper planning" id="brief"><button class="brief-close" id="closeBrief" aria-label="Close level brief">×</button><div class="eyebrow">I · The Alban hills</div><h2 id="levelName">First settlement</h2><p id="outlook"></p><p class="objective">Keep <b>3 homes occupied</b> through winter, with <b>3 days of food and water</b> in every occupied home.</p><select id="level" aria-label="Choose level">${Object.entries(LEVELS).map(([id,l])=>`<option value="${id}">${l.name}</option>`).join('')}</select><div class="brief-actions"><button class="text-button" id="example">Example town</button><button class="text-button" id="resetLayout">Clear layout</button></div><div id="warnings" class="warning-note"></div></aside>
   <button id="openBrief" class="info-button round paper planning hidden" aria-label="Open level brief">i</button>
@@ -44,7 +45,7 @@ function updatePlanning(){
   scene.markers.visible=true;scene.setLayout(l,true);if(tool)scene.setTool(tool);
 }
 function findBuilding(hit){return planner.layout.objects.find(b=>b.id===hit.id)||planner.layout.objects.find(b=>cells(b).some(p=>p.x===hit.x&&p.z===hit.z));}
-function hover(hit){if(!tool||phase!=='planning')return;const b={type:tool,x:hit.x,z:hit.z,rotation};const check=canPlace(planner.layout,b,moveId);scene.preview(b,check);$('toolHint').textContent=`${moveId?'Move':tool[0].toUpperCase()+tool.slice(1)} · ${check.reason} · R to turn`;}
+function hover(hit){lastHover=hit;if(!tool||phase!=='planning')return;const b={type:tool,x:hit.x,z:hit.z,rotation};const check=canPlace(planner.layout,b,moveId);scene.preview(b,check);$('toolHint').textContent=`${moveId?'Move':tool[0].toUpperCase()+tool.slice(1)} · ${check.reason} · R to turn`;}
 function pick(hit){
   if(phase==='planning'&&tool){const result=moveId?planner.move(moveId,hit.x,hit.z,rotation):planner.place(tool,hit.x,hit.z,rotation);if(!result.ok)return toast(result.reason);if(moveId)setTool(null);updatePlanning();return;}
   if(phase==='planning'){const b=findBuilding(hit);selection=b?{id:b.id,kind:'building'}:null;}else selection=hit.id?{id:hit.id,kind:hit.kind}:null;
@@ -81,7 +82,7 @@ function inspectRunning(){
 }
 function updateRunUI(){
   const s=run.state;scene.setState(s);
-  $('seasonSymbol').textContent={Spring:'❧',Summer:'☀',Autumn:'❦',Winter:'☂'}[s.season];$('seasonText').textContent=`${s.season} · Day ${Math.min(14,Math.floor(s.day%14)+1)}`;
+  $('seasonSymbol').textContent={Spring:'❧',Summer:'☀',Autumn:'❦',Winter:'☂'}[s.season];$('seasonText').textContent=`${s.season} · Day ${Math.floor(Math.min(55.999,s.day)%14)+1}`;
   $('weatherText').textContent=`${s.weather==='Rain'?'Passing rain':s.weather==='Dry spell'?'Dry spell':s.weather==='Overcast'?'Cold, quiet skies':'Gentle weather'} · ${paused?'Paused':run.cursor<run.latest?'Replaying recorded days':'Year one'}`;
   $('pause').innerHTML=icon(paused?'play':'pause');$('pause').setAttribute('aria-label',paused?'Play':'Pause');document.querySelectorAll('.speed').forEach(b=>b.classList.toggle('active',+b.dataset.speed===speed));
   $('timeline').max=run.latest;$('timeline').value=run.cursor;$('timeline').style.width=`${Math.max(5,run.latest/YEAR_TICKS*100)}%`;
@@ -119,9 +120,9 @@ addEventListener('keydown',e=>{if(['INPUT','SELECT'].includes(e.target.tagName))
   if(e.code==='Escape'){setTool(null);selection=null;inspect();}
   if(e.code==='KeyQ')scene.rotate(-Math.PI/6);if(e.code==='KeyE')scene.rotate(Math.PI/6);
   if(e.code==='Space'&&phase==='running'){e.preventDefault();togglePause();}
-  if(phase==='planning'){if(['1','2','3','4'].includes(e.key))setTool(['road','home','field','well'][+e.key-1]);if(e.code==='KeyR')rotation=(rotation+1)%4;if((e.ctrlKey||e.metaKey)&&e.code==='KeyZ'){e.preventDefault();$('undo').click();}}
+  if(phase==='planning'){if(['1','2','3','4'].includes(e.key))setTool(['road','home','field','well'][+e.key-1]);if(e.code==='KeyR'){rotation=(rotation+1)%4;if(lastHover)hover(lastHover);}if((e.ctrlKey||e.metaKey)&&e.code==='KeyZ'){e.preventDefault();$('undo').click();}}
 });
 
-try {await scene.load();updatePlanning();$('loading').remove();window.__rome={ready:true,scene,get planner(){return planner;},get phase(){return phase;},get run(){return run;},get paused(){return paused;},getState:()=>run?.state,projectTile:(x,z)=>scene.projectTile(x,z),selectTool:setTool,metrics:()=>scene.metrics(),advance:days=>{if(!run)start();paused=true;run.advanceDays(days);scene.snapPeople=true;updateRunUI();return run.state;},seek,revise,start,loadLayout:layout=>{if(run)revise();planner=new Planner(layout);setTool(null);updatePlanning();},select:(id,kind='building')=>{selection={id,kind};inspect();}};}
+try {await scene.load();const thumbs=scene.thumbnails();document.querySelectorAll('[data-tool]').forEach(b=>b.querySelector('.tool-art').innerHTML=`<img src="${thumbs[b.dataset.tool]}" alt="">`);updatePlanning();$('loading').remove();window.__rome={ready:true,scene,get planner(){return planner;},get phase(){return phase;},get run(){return run;},get paused(){return paused;},getState:()=>run?.state,projectTile:(x,z)=>scene.projectTile(x,z),selectTool:setTool,metrics:()=>scene.metrics(),advance:days=>{if(!run)start();paused=true;run.advanceDays(days);scene.snapPeople=true;updateRunUI();return run.state;},seek,revise,start,loadLayout:layout=>{if(run)revise();planner=new Planner(layout);setTool(null);updatePlanning();},select:(id,kind='building')=>{selection={id,kind};inspect();}};}
 catch(error){$('loading').innerHTML=`<h1>Little Rome</h1><p>The landscape could not load.</p><p>${error.message}</p>`;console.error(error);}
-let lastFrame=performance.now();function frame(){const now=performance.now(),dt=Math.min((now-lastFrame)/1000,.2);lastFrame=now;if(run){run.update(dt,speed,paused);if(run.state.result)paused=true;if(run.state.tick!==lastUiTick)updateRunUI();sound?.update(run.state,paused);}scene.render();requestAnimationFrame(frame);}requestAnimationFrame(frame);
+let lastFrame=performance.now();function frame(){const now=performance.now(),dt=Math.min((now-lastFrame)/1000,.2);lastFrame=now;if(run){run.update(dt,speed,paused);scene.fraction=paused?1:run.fraction;if(run.state.result)paused=true;if(run.state.tick!==lastUiTick)updateRunUI();sound?.update(run.state,paused);}scene.render();requestAnimationFrame(frame);}requestAnimationFrame(frame);
