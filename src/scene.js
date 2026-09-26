@@ -12,6 +12,7 @@ import {climate} from './simulation.js';
 import {wetRoads} from './wet-ground.js';
 import {miniatureLens} from './miniature-lens.js';
 import {pondWater} from './pond-water.js';
+import {createResident,poseResident,detailResidents,settleResident} from './residents.js';
 
 export class Diorama {
   constructor(container,onPick,onHover){
@@ -26,7 +27,8 @@ export class Diorama {
     this.camera=new THREE.PerspectiveCamera(32,innerWidth/innerHeight,.1,140);this.camera.position.set(-9.6,11.0,13.5);
     this.camera.zoom=Math.min(1,this.camera.aspect/1.45);this.camera.updateProjectionMatrix();
     this.controls=new OrbitControls(this.camera,this.renderer.domElement);this.controls.target.set(0,.3,0);this.controls.enablePan=false;
-    this.controls.minDistance=12;this.controls.maxDistance=40;this.controls.minPolarAngle=.40;this.controls.maxPolarAngle=1.25;
+    this.controls.minDistance=2.2;this.controls.maxDistance=40;this.controls.minPolarAngle=.40;this.controls.maxPolarAngle=1.25;
+    this.controls.addEventListener('start',()=>{this.followPerson=null;});
     this.controls.enableDamping=true;this.controls.dampingFactor=.09;this.controls.mouseButtons={LEFT:THREE.MOUSE.ROTATE,MIDDLE:THREE.MOUSE.DOLLY,RIGHT:THREE.MOUSE.ROTATE};
     this.ambient=new THREE.HemisphereLight('#c4d9f2','#bba47f',.82);this.scene.add(this.ambient);
     this.sun=new THREE.DirectionalLight('#ffdfb4',5.2);this.sun.position.set(10,14,12);this.sun.castShadow=true;
@@ -48,7 +50,7 @@ export class Diorama {
     this.frames=[];this.lastFrame=performance.now();this.elapsed=0;this.state=null;this.planning=true;this.effectsRevision=0;this.lastEffects=0;
   }
   async load(){
-    const gltf=await new GLTFLoader().loadAsync('/assets/little-rome.glb');this.library=gltf.scene;const clip=gltf.animations[0];if(clip)this.walkClip=new THREE.AnimationClip('Walk',clip.duration,clip.tracks.filter(t=>t.name.endsWith('.quaternion')));
+    const gltf=await new GLTFLoader().loadAsync('/assets/little-rome.glb');this.library=gltf.scene;const clip=gltf.animations.find(c=>c.name==='Walk')||gltf.animations[0];if(clip)this.walkClip=new THREE.AnimationClip('Walk',clip.duration,clip.tracks.filter(t=>t.name.endsWith('.quaternion')||t.name==='Hips.position'));
     this.library.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;if(o.material.name.startsWith('Foliage')||o.material.name.startsWith('Olive')||o.material.name.startsWith('Vine')||o.material.name.startsWith('Shrub')||o.material.name.startsWith('Fallen')||o.material.name.startsWith('Petal')||o.material.name.startsWith('Cypress needles'))o.material.side=THREE.DoubleSide;if(o.material.map)o.material.map.anisotropy=8;if(o.material.name==='Water'){o.material.metalness=.20;o.material.roughness=.22;if(o.material.normalScale)o.material.normalScale.set(.20,.20);}}});
     for(const name of ['Landscape','WildBorder','Pond']){const obj=this.asset(name);this.scene.add(obj);if(name==='Pond')this.pond=obj;}this.pondReflection=pondWater(this);
     this.materials=new Map();this.library.traverse(o=>{if(o.isMesh&&!this.materials.has(o.material.uuid))this.materials.set(o.material.uuid,{m:o.material,color:o.material.color.clone(),roughness:o.material.roughness});});
@@ -73,6 +75,7 @@ export class Diorama {
       positions.forEach((p,i)=>{const mat=new THREE.Matrix4().compose(new THREE.Vector3(p.x,p.y||0,p.z),new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),p.angle||0),new THREE.Vector3().setScalar(p.scale||1));mat.multiply(o.matrixWorld);mesh.setMatrixAt(i,mat);});mesh.userData.tiles=positions.map(p=>key(Math.round(p.x+5.5),Math.round(p.z+5.5)));parent.add(mesh);});
   }
   setLayout(layout,planning=true){
+    this.followPerson=null;
     this.previewPlants(null);this.renderer.shadowMap.needsUpdate=true;this.ao.dirty=true;
     for(const mesh of this.nature.children)mesh.dispose?.();
     this.layout=layout;this.layoutRevision=(this.layoutRevision||0)+1;this.planning=planning;this.buildings.clear();this.nature.clear();if(this.litter)this.scene.remove(this.litter);this.litter=new THREE.Group();this.litter.visible=false;this.scene.add(this.litter);this.markers.clear();this.buildingMap.clear();
@@ -95,6 +98,7 @@ export class Diorama {
       group.userData={id:b.id,kind:'building'};group.add(this.asset(b.type[0].toUpperCase()+b.type.slice(1)));
       const record={group};
       if(b.type==='home'){const variant=Number(b.id.slice(1))%3;group.add(this.asset('HomeDetails'+variant));group.traverse(o=>{if(o.isMesh&&o.material.name==='Warm lime plaster'){o.material=o.material.clone();o.material.color.set(['#fffaf0','#f4e9d3','#fff6e0'][variant]);}});}
+      if(b.type==='home'){record.receiver=this.asset('WaterJug');record.receiver.position.set(.80,.10,1.18);record.receiver.scale.setScalar(1.8);group.add(record.receiver);record.receiverWater=[];record.receiver.traverse(o=>{if(o.isMesh&&o.material.name==='Water')record.receiverWater.push(o);});}
       if(b.type==='home'){group.scale.y=[1.10,.94,1.06][Number(b.id.slice(1))%3];record.stores=this.asset('HomeStores');record.shutters=this.asset('ClosedShutters');record.shutters.visible=false;record.pack=this.asset('DeparturePack');record.pack.position.set(-.45,.22,.87);record.pack.scale.setScalar(1.6);record.pack.visible=false;group.add(record.stores,record.shutters,record.pack);record.glow=new THREE.PointLight('#ff9c30',0,3.2,2);record.glow.position.set(.4,.65,.75);group.add(record.glow);record.warning=this.warningSprite();record.warning.position.set(0,2.35,0);record.warning.visible=false;group.add(record.warning);}
       if(b.type==='well'){record.water=this.asset('WellWater');group.add(record.water);}
       if(b.type==='field'){record.vegetables=Number(b.id.slice(1))%2===1;record.crops=this.asset(record.vegetables?'Vegetables':'Crops');record.cropMats=[];record.heads=[];record.crops.traverse(o=>{if(o.isMesh){o.material=o.material.clone();record.cropMats.push({mat:o.material,color:o.material.color.clone()});if(o.material.name==='Ripe wheat')record.heads.push(o);}});record.stubble=this.asset('Stubble');record.stubble.position.y=.09;record.stubble.visible=false;group.add(record.stubble);record.crops.position.y=.07;record.crops.scale.y=.20;record.stores=this.asset('FieldStores');record.stores.visible=false;group.add(record.crops,record.stores);}
@@ -124,14 +128,7 @@ export class Diorama {
     this.ghost.visible=true;this.ghost.position.copy(this.world(center(b)));this.ghost.position.y=.07;this.ghost.rotation.y=-(b.rotation||0)*Math.PI/2;
     this.ghost.traverse(o=>{if(o.isMesh)o.material.color.set(check.ok?(check.access?'#53b76b':'#d6ab4b'):'#dc624a');if(o.isLineSegments)o.material.color.set(check.ok?(check.access?'#174f2a':'#6b4712'):'#701c17');});
   }
-  person(p){
-    const g=new THREE.Group();g.scale.setScalar(1.7);g.userData={id:p.id,kind:'person'};const torso=new THREE.Group();torso.position.y=.27;g.add(torso);const body=this.asset('ResidentBody');body.position.y=-.27;torso.add(body);
-    body.traverse(o=>{if(o.isMesh&&['Madder sash','Woven linen'].includes(o.material.name)){const tunic=o.material.name==='Woven linen';o.material=o.material.clone();o.material.color.set((tunic?['#f1e4c7','#90a39b','#e7d4a4','#b3724b','#ccbdaa','#91a4ba']:['#98462f','#546d66','#ac864a'])[Number(p.id.slice(1))%(tunic?6:3)]);}});
-    const parts={};for(const name of ['ArmL','ArmR','LegL','LegR']){const o=this.asset(name),arm=name.startsWith('Arm');o.position.set(name.endsWith('L')?-.052:.052,arm?.065:.15,0);(arm?torso:g).add(o);parts[name]=o;}
-    for(const side of ['L','R']){const forearm=this.asset('Forearm'+side);forearm.position.set(side==='L'?-.015:.015,-.074,.012);parts['Arm'+side].add(forearm);parts['Forearm'+side]=forearm;}
-    for(const name of ['WaterJug','FoodBasket','DeparturePack','Hoe']){const o=this.asset(name);o.position.set(name==='DeparturePack'?0:.08,name==='DeparturePack'?.03:-.09,name==='DeparturePack'?-.09:.13);o.visible=false;torso.add(o);parts[name]=o;}
-    this.people.add(g);const r={g,parts,body,torso};if(this.walkClip){r.mixer=new THREE.AnimationMixer(g);r.mixer.clipAction(this.walkClip).play();}this.personMap.set(p.id,r);return r;
-  }
+  person(p){return createResident(this,p);}
   warningSprite(){const c=document.createElement('canvas');c.width=c.height=96;const ctx=c.getContext('2d');ctx.fillStyle='#ac7934';ctx.strokeStyle='#f9db95';ctx.lineWidth=4;ctx.beginPath();ctx.arc(48,48,40,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.fillStyle='#fff0ca';ctx.beginPath();ctx.moveTo(48,22);ctx.bezierCurveTo(40,36,31,45,31,56);ctx.bezierCurveTo(31,80,66,80,66,56);ctx.bezierCurveTo(66,45,56,35,48,22);ctx.fill();const m=new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c),depthTest:false,depthWrite:false,transparent:true});m.map.colorSpace=THREE.SRGBColorSpace;const s=new THREE.Sprite(m);s.scale.set(.40,.40,1);return s;}
   setState(state){
     // At 4×, several simulation updates can land in one display frame. Refresh
@@ -146,27 +143,29 @@ export class Diorama {
   applyState(){
     const s=this.state;if(!s)return;
     const fraction=this.fraction??1,visualTick=this.previousState?s.tick-1+fraction:s.tick,winterGlow=s.season==='Winter'?THREE.MathUtils.smoothstep(s.day-42,0,1.2):0;
-    const seen=new Set();for(const p of s.people){if(p.departed)continue;seen.add(p.id);const r=this.personMap.get(p.id)||this.person(p);r.g.position.copy(this.world(p));r.g.position.y=.10;
-      const prev=this.previousState?.people.find(x=>x.id===p.id);if(prev){r.g.position.x=THREE.MathUtils.lerp(prev.x,p.x,fraction)-5.5;r.g.position.z=THREE.MathUtils.lerp(prev.z,p.z,fraction)-5.5;}
+    if(this.posedState!==s||this.posedTick!==visualTick){this.posedState=s;this.posedTick=visualTick;
+    const seen=new Set();for(const p of s.people){if(p.departed)continue;seen.add(p.id);const r=this.personMap.get(p.id)||this.person(p);
+      poseResident(this,r,p,s,visualTick,this.previousState?.people.find(x=>x.id===p.id),fraction);
       if(p.id===this.selectedPerson)this.personRing.position.copy(r.g.position).setY(.12);
-      r.g.rotation.y=p.heading||0;const walking=p.path&&p.pathIndex<p.path.length,phase=visualTick*.75;
-      if(r.mixer)r.mixer.setTime(walking?visualTick/8:0);else{const stride=walking?Math.sin(phase)*.52:0;r.parts.LegL.rotation.x=stride;r.parts.LegR.rotation.x=-stride;r.parts.ArmL.rotation.x=-stride*.7;r.parts.ArmR.rotation.x=stride*.7;}
-      r.parts.ForearmL.rotation.x=walking?-.12:0;r.parts.ForearmR.rotation.x=p.carry?.type?-.75:walking?-.12:0;
-      if(p.carry?.type)r.parts.ArmR.rotation.x=-.35;
-      r.parts.WaterJug.visible=p.carry?.type==='water'||p.job?.resource==='water';r.parts.WaterJug.traverse(o=>{if(o.isMesh&&o.material.name==='Water')o.visible=p.carry?.type==='water'&&p.carry.amount>0;});r.parts.FoodBasket.visible=p.carry?.type==='food';r.parts.DeparturePack.visible=['depart','arrive'].includes(p.job?.type);
-      const working=!walking&&p.job?.type==='tend',harvesting=!walking&&p.job?.type==='harvest',pouring=!walking&&p.job?.resource==='water'&&p.job?.phase==='deliver';
-      r.parts.Hoe.visible=working;r.torso.rotation.x=working?.60+Math.sin(visualTick*.12)*.08:harvesting?.82:pouring?.35:0;
-      r.parts.WaterJug.rotation.x=pouring?-.8:0;r.parts.WaterJug.position.y=pouring?.03:-.09;
-      if(working){r.parts.ForearmR.rotation.x=-.55;r.parts.ForearmL.rotation.x=-.5;r.parts.ArmR.rotation.x=-.9+Math.sin(visualTick*.12)*.45;r.parts.ArmL.rotation.x=-.6;r.parts.Hoe.rotation.x=r.parts.ArmR.rotation.x;r.parts.Hoe.position.y=.01;}
-      if(harvesting){r.parts.ForearmR.rotation.x=-.4;r.parts.ForearmL.rotation.x=-.4;r.parts.ArmR.rotation.x=-1.1+Math.sin(visualTick*.2)*.2;r.parts.ArmL.rotation.x=-1.1-Math.sin(visualTick*.2)*.2;}
-      if(pouring)r.parts.ArmR.rotation.x=-1.25;
     }
     for(const [id,r]of this.personMap)if(!seen.has(id))r.g.visible=false;else r.g.visible=true;
+    // Ease neighbouring silhouettes apart within the path width. This only
+    // offsets their presentation; routes, arrivals and finite loads stay fixed.
+    const neighbours=s.people.filter(p=>!p.departed).map(p=>({r:this.personMap.get(p.id),mobility:p.pathIndex<p.path.length?1:.15}));
+    for(let pass=0;pass<3;pass++)for(let i=0;i<neighbours.length;i++)for(let j=i+1;j<neighbours.length;j++){
+      const a=neighbours[i],b=neighbours[j],ap=a.r.g.position,bp=b.r.g.position;let dx=bp.x-ap.x,dz=bp.z-ap.z,d=Math.hypot(dx,dz);
+      if(d>=.49)continue;if(d<.001){dx=.001;dz=0;d=.001;}const push=(.49-d)/(a.mobility+b.mobility);
+      ap.x-=dx/d*push*a.mobility;ap.z-=dz/d*push*a.mobility;bp.x+=dx/d*push*b.mobility;bp.z+=dz/d*push*b.mobility;
+    }
+    for(const {r}of neighbours){settleResident(r);if(r.g.userData.id===this.selectedPerson)this.personRing.position.copy(r.g.position).setY(.12);}
+    }
+    const selected=this.personMap.get(this.selectedPerson);if(selected)this.personRing.position.copy(selected.g.position).setY(.12);
     // Stored snapshots change only on simulation ticks. Buildings and seasonal
     // materials need no work between ticks; articulated people still interpolate.
     if(this.appliedState!==s){this.appliedState=s;
     for(const b of s.buildings){const r=this.buildingMap.get(b.id);if(!r)continue;
       if(b.type==='home'){r.stores.visible=b.food>3;r.stores.scale.y=Math.min(1,.35+b.food/30);r.shutters.visible=b.status==='abandoned'||b.status==='vacant';r.glow.intensity=!r.shutters.visible?1.3*winterGlow:0;r.pack.visible=['preparing','leaving'].includes(b.status);r.warning.visible=b.arrived&&b.water<1&&!r.shutters.visible;}
+      if(b.type==='home')for(const water of r.receiverWater)water.visible=b.water>0;
       if(b.type==='well')r.water.position.y=-.13+.22*(b.water/60);
       if(b.type==='field'){for(const head of r.heads)head.visible=b.dead||b.growth>.38;r.crops.visible=winterGlow<1;r.stubble.visible=winterGlow>.5;r.crops.scale.y=(r.vegetables?1:.72)*THREE.MathUtils.lerp(b.dead?.38:.08+.92*(b.growth||0),.10,winterGlow);r.crops.rotation.z=b.moisture<15?.20:0;r.stores.visible=b.food>1;r.stores.scale.y=.55+.45*Math.min(1,b.food/25);for(const {mat,color}of r.cropMats){mat.color.copy(color);if(b.dead||s.season==='Winter')mat.color.lerp(new THREE.Color('#87643c'),b.dead?.9:.9*winterGlow);else if(b.moisture<20)mat.color.lerp(new THREE.Color('#ac893b'),.55);else if(!r.vegetables&&(mat.name==='Crop stems'||mat.name.startsWith('Foliage')))mat.color.lerp(new THREE.Color('#cba747'),THREE.MathUtils.smoothstep(b.growth,.42,.92)*.85);}}
       if(b.type==='field'){const dryness=1-Math.min(1,b.moisture/50);for(const {mat,color}of r.soilMats){mat.color.copy(color).multiplyScalar(.82+.62*dryness);mat.roughness=.65+.3*dryness;}}
@@ -198,10 +197,25 @@ export class Diorama {
     for(const normal of this.waterNormals)normal.offset.set(visualTick*.00012,visualTick*.00009);
     if(this.rain.visible){const pos=this.rain.geometry.attributes.position;for(let i=0;i<800;i++){const y=((i*.317-visualTick*.13)%8+8)%8;pos.array[i*6+1]=y;pos.array[i*6+4]=y+.25;}pos.needsUpdate=true;}
   }
-  render(){const now=performance.now();if(this.ready){this.applyState();this.controls.update();this.lens.uniforms.focus.value=this.camera.position.distanceTo(new THREE.Vector3(0,.4,0));this.lens.uniforms.texel.value.set(1/(innerWidth*this.renderer.getPixelRatio()),1/(innerHeight*this.renderer.getPixelRatio()));this.renderer.info.reset();this.composer.render();}this.frames.push(now-this.lastFrame);if(this.frames.length>300)this.frames.shift();this.lastFrame=now;}
+  render(){const now=performance.now();if(this.ready){this.applyState();if(this.followPerson){const r=this.personMap.get(this.followPerson);if(r?.g.visible){const target=r.g.position.clone().add(new THREE.Vector3(0,.42,0)),delta=target.clone().sub(this.controls.target);this.camera.position.add(delta);this.controls.target.copy(target);}else this.followPerson=null;}this.controls.update();detailResidents(this);this.lens.uniforms.focus.value=this.camera.position.distanceTo(this.controls.target);this.lens.uniforms.texel.value.set(1/(innerWidth*this.renderer.getPixelRatio()),1/(innerHeight*this.renderer.getPixelRatio()));this.renderer.info.reset();this.composer.render();}this.frames.push(now-this.lastFrame);if(this.frames.length>300)this.frames.shift();this.lastFrame=now;}
   thumbnails(){const r=new THREE.WebGLRenderer({antialias:true,alpha:true});r.setSize(152,116);r.setPixelRatio(1);r.toneMapping=THREE.ACESFilmicToneMapping;r.toneMappingExposure=1.25;const result={};for(const name of ['Road','Home','Field','Well']){const sc=new THREE.Scene();sc.add(new THREE.HemisphereLight('#fff6da','#7c694c',3));const sun=new THREE.DirectionalLight('#fff1d2',3);sun.position.set(-3,5,4);sc.add(sun);const object=this.asset(name);sc.add(object);if(name==='Field'){const crops=this.asset('Crops');crops.position.y=.07;sc.add(crops);}const box=new THREE.Box3().setFromObject(object),c=box.getCenter(new THREE.Vector3()),size=box.getSize(new THREE.Vector3()),span=Math.max(size.x,size.y,size.z)*.88;const cam=new THREE.OrthographicCamera(-span*1.31,span*1.31,span,-span,.1,30);cam.position.copy(c).add(new THREE.Vector3(3,2.6,4));cam.lookAt(c);r.render(sc,cam);result[name.toLowerCase()]=r.domElement.toDataURL('image/png');}r.dispose();return result;}
   rotate(delta){const off=this.camera.position.clone().sub(this.controls.target);off.applyAxisAngle(new THREE.Vector3(0,1,0),delta);this.camera.position.copy(this.controls.target).add(off);this.controls.update();}
-  resetCamera(){this.camera.position.set(-9.6,11.0,13.5);this.controls.target.set(0,.3,0);this.controls.update();}
+  focusResident(id){
+    const r=this.personMap.get(id);if(!r)return;this.followPerson=id;this.controls.target.copy(r.g.position).add(new THREE.Vector3(0,.42,0));
+    this.scene.updateMatrixWorld(true);let best=null;const ray=new THREE.Raycaster();ray.camera=this.camera;
+    const otherPeople=[...this.personMap.values()].filter(other=>other!==r&&other.g.visible).map(other=>new THREE.Box3().setFromCenterAndSize(other.g.position.clone().add(new THREE.Vector3(0,.5,0)),new THREE.Vector3(.36,.9,.36)));
+    const person=this.state?.people.find(p=>p.id===id),field=r.pose==='harvest'?this.state.buildings.find(b=>b.id===person.job.target):null;
+    let preferred=0;if(field&&!this.buildingMap.get(field.id).vegetables){const c=center(field),d=door(field),angle=Math.atan2(d.x-c.x,d.z-c.z)-r.g.rotation.y;preferred=Math.atan2(Math.sin(angle),Math.cos(angle));}
+    const head=r.bones.Head.getWorldPosition(new THREE.Vector3()).add(new THREE.Vector3(0,.085,.065).applyQuaternion(r.g.quaternion));
+    const targets=[...[-.05,0,.05].map(x=>({point:head.clone().add(new THREE.Vector3(x,.015,0).applyQuaternion(r.g.quaternion)),weight:6})),{point:r.g.position.clone().add(new THREE.Vector3(0,.64,0)),weight:3},{point:r.g.position.clone().add(new THREE.Vector3(0,.22,0)),weight:1}];
+    for(const point of Object.values(r.gripTargets))targets.push({point:r.g.localToWorld(point.clone()),weight:5});
+    for(const angle of [...(preferred?[preferred,preferred+.2,preferred-.2]:[]),.35,-.6,.95,-1.25,1.65,-1.65,2.25,-2.25,Math.PI])for(const elevation of [1.22,1.7]){const heading=r.g.rotation.y+angle,distance=preferred?2.7:3.45,position=this.controls.target.clone().add(new THREE.Vector3(Math.sin(heading)*distance,elevation,Math.cos(heading)*distance));let blocked=0;
+      for(const {point,weight}of targets){const direction=point.clone().sub(position);ray.set(position,direction.clone().normalize());ray.far=direction.length()-.015;const hits=ray.intersectObjects(this.buildings.children,true).filter(h=>{let o=h.object;while(o){if(!o.visible)return false;o=o.parent;}return true;});const crowd=otherPeople.some(box=>{const hit=ray.ray.intersectBox(box,new THREE.Vector3());return hit&&hit.distanceTo(position)<ray.far;});if(hits.length||crowd)blocked+=weight;}
+      const score=blocked*10+Math.abs(Math.atan2(Math.sin(angle-preferred),Math.cos(angle-preferred)))+(elevation-1.22)*2;if(!best||score<best.score)best={position,score};
+    }
+    this.camera.position.copy(best.position);this.controls.update();
+  }
+  resetCamera(){this.followPerson=null;this.camera.position.set(-9.6,11.0,13.5);this.controls.target.set(0,.3,0);this.controls.update();}
   projectTile(x,z){const p=this.world({x,z});p.y=.1;p.project(this.camera);return {x:(p.x+1)*innerWidth/2,y:(1-p.y)*innerHeight/2};}
   metrics(){const a=this.frames.slice(-120).sort((a,b)=>a-b);return {medianMs:a[Math.floor(a.length/2)],p95Ms:a[Math.floor(a.length*.95)],drawCalls:this.renderer.info.render.calls,triangles:this.renderer.info.render.triangles};}
 }

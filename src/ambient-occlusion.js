@@ -12,6 +12,8 @@ export class TownOcclusion extends GTAOPass {
   render(renderer,writeBuffer,readBuffer,...rest){
     const tick=this.world.effectsRevision,camera=this.world.camera;
     if(this.dirty||tick!==this.previousTick||!this.previousCamera.equals(camera.matrixWorld)||!this.previousProjection.equals(camera.projectionMatrix)){
+      const distance=camera.position.distanceTo(this.world.controls.target);
+      this.updateGtaoMaterial({radius:.20+.40*Math.min(1,Math.max(0,(distance-3)/9))});
       this.dirty=false;this.previousTick=tick;this.previousCamera.copy(camera.matrixWorld);this.previousProjection.copy(camera.projectionMatrix);
       const ghost=this.world.ghost,visible=ghost?.visible,sprites=[];if(ghost)ghost.visible=false;
       this.scene.traverse(o=>{if(o.isSprite&&o.visible){sprites.push(o);o.visible=false;}});

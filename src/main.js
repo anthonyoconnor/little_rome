@@ -68,6 +68,7 @@ function inspectRunning(){
     const p=s.people.find(p=>p.id===selection.id);if(!p||p.departed){selection=null;inspect();return;}
     html=`<div class="eyebrow">A neighbour · Home ${s.buildings.filter(b=>b.type==='home').findIndex(b=>b.id===p.home)+1}</div><h2>${p.name}</h2><p>${jobDescription(p,s)}.</p>${p.carry.amount?stat('Carrying',p.carry.amount,8,p.carry.type):["depart","arrive"].includes(p.job?.type)?'':'<p>Hands free for the next errand.</p>'}`;
     scene.showRoute(p);
+    html+='<div class="actions"><button id="lookCloser">Look closer</button></div>';
   }else{
     const b=s.buildings.find(b=>b.id===selection.id);if(!b){selection=null;inspect();return;}
     const num=s.buildings.filter(x=>x.type===b.type).findIndex(x=>x.id===b.id)+1;
@@ -79,6 +80,7 @@ function inspectRunning(){
     scene.showRoute(null);
   }
   $('inspector').innerHTML=`<button class="inspector-close" aria-label="Close inspector">×</button>${html}`;$('inspector').classList.remove('hidden');$('inspector').querySelector('button').onclick=()=>{selection=null;scene.showRoute(null);inspect();};
+  if($('lookCloser'))$('lookCloser').onclick=()=>scene.focusResident(selection.id);
 }
 function updateRunUI(){
   const s=run.state;scene.setState(s);

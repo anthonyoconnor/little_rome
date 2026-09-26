@@ -20,13 +20,14 @@ Outcome: refine lighting, assets, animation, seasonal feedback, and restrained c
 - Automate all six visual states and the full year/retry loop; record measured performance (target: median frame below 33 ms at 1440×900 on this machine).
 - Record one selected screenshot per major visual iteration and commit logical checkpoints.
 
-## M4 — Neighbours with character and weight · in progress
+## M4 — Neighbours with character and weight · complete
 Outcome: a supplementary close-up resident concept, implemented as more detailed Blender people with grounded, readable movement and prop handling.
 - Save the generated resident reference and its prompt alongside the original concept art; retain the original town targets.
 - Add distinct faces/hair, sculpted clothing and sandals, and articulated knees, hands and upper bodies.
 - Verify walking, carrying, collecting, tending, harvesting and quiet activity in actual browser close-ups and a motion sequence.
 - Preserve deterministic pause/rewind, actual carried-resource feedback and the full-year outcome; measure normal-view performance.
 - Obtain a fresh read-only critique and save one actual in-game completion capture as the next progress image.
+- Evidence: resident concept and generation prompt saved; detailed Blender models, a 16-bone rig and 17-track walk imported; eight real job/activity close-ups and a browser motion video captured. Hand contact, home/crop pouring, stance/swing feet, harvest hand travel, pause and exact rewind pass. Full-year/retry/challenge checks, all six visual states, 22 headless checks and production build pass. `0008.png` records the revised people and pouring action. Normal-view winter medians: 28.4 ms paused, 32.5 ms at 1×, 32.1 ms at 4×.
 
 ## Visual iteration record
 The first M3 visual checkpoint adds textured Blender surfaces, smooth roof tiles, denser planting, irregular cliff stones, seasonal lighting, animated residents, and drought feedback. The six-state browser check passes, including pause, imported animation, a second camera angle, close inspection, and a compact viewport. Winter median frame: 30.1 ms at 1440×900; p95 34.1 ms. Record this iteration as `0003.png`.
@@ -47,4 +48,8 @@ Fresh review of this pass progressed from 7.4 to 7.8 to 8.0/10 after corrections
 
 Final validation: 22 headless checks, the complete browser year/retry/rewind/collapse and challenge flows, the six-state visual check, and production build pass. Paused / 1× / 4× winter medians are 27.9 / 31.7 / 32.0 ms (p95 32.0 / 46.7 / 43.8 ms). A measured performance regression was fixed by removing fully buried cliff faces and avoiding repeated building/material updates between simulation ticks. Visible geometry remains intact; people and rain still interpolate every frame. The M3 completion capture is `0007.png`.
 
-No required milestone work remains. See [validation.md](validation.md) for evidence and limits. All validation is automated; enjoyment is not claimed as tested by automation.
+The M4 resident pass (`0008.png`) follows the supplementary close-up concept with four head designs, six clothing/skin/hair profiles, continuous skinned limbs and garments, detailed sandals, belts and folded shawls. Open wicker baskets and clay vessels stay attached to the hands; actual water pours into home storage or field soil. Walk timing follows travel speed with bent knees and heel/toe roll. Work uses the hips and spine; harvesting moves from a crop reach through gathering to the basket. Quiet head movement, breathing and blinking use recorded time and freeze on pause. The new Look closer control follows residents and selects an unobstructed view where possible.
+
+Fresh read-only review rose from 5.5 to 7.5/10 after correcting skin weights, garment seams, prop openings, camera framing and work poses. The final reviewed images show no major broken geometry or impossible prop contact. The people remain more stylized than the close-up concept: softer facial anatomy, varied hair masses and more natural cloth folds are further art polish. Wheat can partially obscure the hands during harvesting. Normal-view performance is retained using Blender lower detail meshes, merged material draws and cached paused poses.
+
+The requested resident milestone is complete. See [validation.md](validation.md) for evidence and remaining fidelity limits. All validation is automated; enjoyment is not claimed as tested by automation.

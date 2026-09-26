@@ -21,12 +21,15 @@ def material(name,color,rough=.85,texture=False):
             return low*(1-f[:,None])+high*f[:,None]
         # Broad mottling flattened plaster and made every material equally noisy.
         # Keep lime clean; small surface grain carries the close-view detail.
-        if name=='Warm lime plaster':noise=rng.normal(0,.013,(n,n))+cloud(35)*.013
+        if name=='Resident skin':noise=rng.normal(0,.007,(n,n))+cloud(35)*.014
+        elif name=='Resident linen':noise=rng.normal(0,.012,(n,n))+cloud(47)*.016+np.cos(x*math.pi)*np.cos(y*math.pi)*.027
+        elif name=='Warm lime plaster':noise=rng.normal(0,.013,(n,n))+cloud(35)*.013
         elif name.startswith('Fired terracotta'):noise=rng.normal(0,.018,(n,n))+cloud(19)*.027+cloud(63)*.014
         elif name.startswith('Cypress'):noise=cloud(13)*.23+cloud(57)*.16+rng.normal(0,.045,(n,n))
         else:noise=rng.normal(0,.032,(n,n))+cloud(7)*.038+cloud(27)*.025+cloud(63)*.016
         ar=np.ones((n,n,4),dtype=np.float32)
         for i,c in enumerate(color):ar[:,:,i]=np.clip(c*(1+noise),0,1)
+        if name=='Resident skin':ar[:,:,:3]=np.clip(.96*(1+noise[:,:,None]),0,1)
         if name=='Warm lime plaster':
             wear=np.clip((.13-y/n+cloud(9)*.035)*8,0,.5)
             ar[:,:,:3]*=(1-wear[:,:,None]*np.array([.12,.17,.23]));noise+=wear*.09
@@ -159,6 +162,7 @@ class Mesh:
     def finish(self):
         mesh=bpy.data.meshes.new(self.name);mesh.from_pydata(self.v,[],self.f);mesh.update()
         obj=bpy.data.objects.new(self.name,mesh);bpy.context.collection.objects.link(obj)
+        if hasattr(self,'bind_vertices'):self.bind_vertices(obj)
         for m in MATS:mesh.materials.append(m)
         for p,mat,sm in zip(mesh.polygons,self.mi,self.smooth):
             p.material_index=mat;p.use_smooth=sm
@@ -591,6 +595,8 @@ for row in range(24):
     for col in range(36):
         x=-1.25+col*.072+random.uniform(-.025,.025);y=-1.25+row*.111+random.uniform(-.035,.035)
         if x>.7 and y>.7:continue
+        # A narrow working furrow leads from the gate to the gathering spot.
+        if abs(x)<.22 and y<.38:continue
         h=random.uniform(.46,.82)
         bend=random.uniform(-.09,.09);m.tube((x,y,0),(x+bend*.3,y,h*.55),.006,stem,n=4);m.tube((x+bend*.3,y,h*.55),(x+bend,y,h),.0045,stem,n=4)
         for j in range(2):
@@ -651,48 +657,14 @@ for i in range(22):
 m.tube((.52,.65,.33),(.52,.65,.36),.071,sack,n=12)
 m.finish()
 
-# Resident rig: separately named body parts keep walking and carrying tied to state.
-m=Mesh('ResidentBody')
-rings=[]
-for z,rx,ry in [(.145,.080,.053),(.21,.071,.047),(.275,.049,.034),(.32,.062,.035),(.36,.058,.028)]:
-    rings.append([(math.cos(i*math.tau/24)*(rx+.004*math.sin(i*3.14/2)),math.sin(i*math.tau/24)*(ry+.004*math.sin(i*3.14/2)),z+.004*math.cos(i*1.57))for i in range(24)])
-for j in range(len(rings)-1):
-    for i in range(24):m.face([rings[j][i],rings[j][(i+1)%24],rings[j+1][(i+1)%24],rings[j+1][i]],linen,True)
-m.tube((0,0,.27),(0,0,.285),.054,sash,r2=.056,n=16)
-m.tube((0,0,.35),(0,0,.401),.018,skin,n=12)
-m.ellipsoid((0,0,.424),(.037,.039,.052),skin,16,10)
-m.ellipsoid((0,.009,.448),(.040,.037,.030),hair,14,8)
-m.ellipsoid((0,-.039,.42),(.010,.012,.014),skin,10,6)
-for side in [-1,1]:
-    m.ellipsoid((side*.036,0,.425),(.007,.011,.014),skin,8,5)
-    m.ellipsoid((side*.016,-.035,.434),(.004,.003,.0035),dark,6,4)
-m.finish()
-for name,side in [('ArmL',-1),('ArmR',1)]:
-    m=Mesh(name);m.tube((0,0,0),(side*.015,-.012,-.074),.018,skin,r2=.014,n=10);m.tube((0,0,.015),(side*.01,-.006,-.048),.026,linen,r2=.021,n=10);m.finish()
-    m=Mesh('Forearm'+name[-1]);m.ellipsoid((0,0,0),(.014,.013,.013),skin,10,6);m.tube((0,0,0),(-side*.002,-.013,-.053),.014,skin,r2=.010,n=10);m.ellipsoid((-side*.002,-.013,-.066),(.012,.009,.019),skin,10,6);m.ellipsoid((-side*.012,-.018,-.058),(.006,.008,.011),skin,8,5);m.finish()
-for name in ['LegL','LegR']:
-    m=Mesh(name);m.tube((0,0,0),(0,0,-.14),.019,skin,n=7);m.ellipsoid((0,-.021,-.135),(.024,.044,.015),wood,8,4);m.finish()
-m=Mesh('WaterJug');m.tube((0,0,0),(0,0,.055),.036,roofs[2],r2=.055,n=14);m.tube((0,0,.055),(0,0,.105),.055,roofs[2],r2=.040,n=14);m.tube((0,0,.105),(0,0,.117),.044,roofs[3],n=14);m.tube((0,0,.113),(0,0,.114),.034,soil,n=14);m.tube((0,0,.115),(0,0,.116),.033,water,n=12)
-last=(.04,0,.095)
-for i in range(1,9):
-    a=i*math.pi/8;p=(.04+math.sin(a)*.034,0,.067+math.cos(a)*.028);m.tube(last,p,.006,roofs[3],n=6);last=p
-m.finish()
-m=Mesh('FoodBasket');m.tube((0,0,0),(0,0,.105),.065,woodlight,r2=.085,n=10)
-for h in [.018,.037,.056,.075,.094]:
-    for i in range(16):
-        a=i*math.tau/16;b=(i+1)*math.tau/16;r=.065+h*.19;m.tube((math.cos(a)*r,math.sin(a)*r,h),(math.cos(b)*r,math.sin(b)*r,h),.003,sack,n=4)
-for i in range(7):m.ellipsoid((random.uniform(-.048,.048),random.uniform(-.04,.04),.11),(.026,.022,.035),gold,6,4)
-m.finish()
-m=Mesh('DeparturePack');m.ellipsoid((0,0,0),(.077,.049,.10),woodlight,9,6);m.finish()
-m=Mesh('Hoe');m.tube((0,0,0),(0,.03,-.26),.011,woodlight,n=6);m.box((0,.002,-.26),(.075,.018,.023),stones[1]);m.finish()
+# The resident library owns its sculpted meshes, skin weights and walk action.
+import sys
+sys.path.insert(0,str(ROOT/'scripts'))
+from resident_assets import build_residents
+build_residents(Mesh,material,{'sash':sash,'wood':wood,'woodlight':woodlight,'clay':roofs[2],'water':water,'soil':soil,'gold':gold,'sack':sack,'green':greens[4]})
 
 # Preserve source, and export only browser-ready meshes. Y-up conversion is glTF's default.
 bpy.context.scene.render.fps=24;bpy.context.scene.frame_start=1;bpy.context.scene.frame_end=25
-for name,sign in [('ArmL',1),('ArmR',-1),('LegL',-1),('LegR',1)]:
-    obj=bpy.data.objects[name]
-    for frame,angle in [(1,0),(7,.52),(13,0),(19,-.52),(25,0)]:
-        obj.rotation_euler.x=angle*sign;obj.keyframe_insert(data_path='rotation_euler',frame=frame)
-    obj.animation_data.action.name='Walk_'+name
 bpy.context.scene.frame_set(1)
 bpy.ops.wm.save_as_mainfile(filepath=str(SOURCE/'little-rome.blend'))
 bpy.ops.export_scene.gltf(filepath=str(OUT/'little-rome.glb'),export_format='GLB',export_yup=True,export_apply=True,export_animations=True,export_animation_mode='ACTIVE_ACTIONS',export_nla_strips_merged_animation_name='Walk')
