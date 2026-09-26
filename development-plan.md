@@ -20,6 +20,14 @@ Outcome: refine lighting, assets, animation, seasonal feedback, and restrained c
 - Automate all six visual states and the full year/retry loop; record measured performance (target: median frame below 33 ms at 1440×900 on this machine).
 - Record one selected screenshot per major visual iteration and commit logical checkpoints.
 
+## M4 — Neighbours with character and weight · in progress
+Outcome: a supplementary close-up resident concept, implemented as more detailed Blender people with grounded, readable movement and prop handling.
+- Save the generated resident reference and its prompt alongside the original concept art; retain the original town targets.
+- Add distinct faces/hair, sculpted clothing and sandals, and articulated knees, hands and upper bodies.
+- Verify walking, carrying, collecting, tending, harvesting and quiet activity in actual browser close-ups and a motion sequence.
+- Preserve deterministic pause/rewind, actual carried-resource feedback and the full-year outcome; measure normal-view performance.
+- Obtain a fresh read-only critique and save one actual in-game completion capture as the next progress image.
+
 ## Visual iteration record
 The first M3 visual checkpoint adds textured Blender surfaces, smooth roof tiles, denser planting, irregular cliff stones, seasonal lighting, animated residents, and drought feedback. The six-state browser check passes, including pause, imported animation, a second camera angle, close inspection, and a compact viewport. Winter median frame: 30.1 ms at 1440×900; p95 34.1 ms. Record this iteration as `0003.png`.
 
