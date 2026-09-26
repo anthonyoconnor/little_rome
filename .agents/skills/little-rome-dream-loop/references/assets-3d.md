@@ -12,4 +12,3 @@ C:\Program Files\Blender Foundation\Blender 5.2\blender.exe
 
 Preparation verified Blender 5.2.1 LTS and its glTF export operator. Rediscover the executable if that path changes.
 
-This replaces the asset-selection process in [Dream Loop's Pro asset guide](https://github.com/achimala/dream-loop/blob/main/references/pro-mode/assets-3d.md) with Blender as the authoring tool.
