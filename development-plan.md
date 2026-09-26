@@ -1,12 +1,13 @@
 # Development plan
 
-## M1 — A town you can arrange · in progress
+## M1 — A town you can arrange · complete
 Outcome: a browser-rendered Roman diorama, with Blender source assets and an editable, budgeted town.
 - Automatically verify placement, entrances, obstacles, move/refund/undo, and budget bounds.
 - Browser smoke checks exercise construction, camera, inspection, and an 80-coin level brief.
 - Inspect the running scene and record `progress/0001.png` before the milestone checkpoint.
+- Evidence: 5 layout tests, production build, and automated Chrome placement/undo/camera smoke passed. Initial render median 16.6 ms. Fresh visual review: 6/10; framing and roof geometry corrected, vegetation/material gaps assigned to M3.
 
-## M2 — A year of village life · planned
+## M2 — A year of village life · in progress
 Outcome: residents physically carry water and food, tend and harvest crops, survive or depart, with seasons and trustworthy playback.
 - Deterministic headless scenarios cover sensible alternatives, shortages, distance, recovery, winter, retry, speed, and rewind.
 - Browser checks exercise Go, pause, speed, scrub, inspect, outcome, and revise.
@@ -19,4 +20,4 @@ Outcome: refine lighting, assets, animation, seasonal feedback, and restrained c
 - Record one selected screenshot per major visual iteration and commit logical checkpoints.
 
 ## Current next action
-Create the Blender asset library and first planning scene. All validation is automated; enjoyment is not claimed as tested by automation.
+Implement and tune physical resource errands and the full year. All validation is automated; enjoyment is not claimed as tested by automation.
