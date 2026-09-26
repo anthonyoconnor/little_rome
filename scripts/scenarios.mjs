@@ -17,6 +17,8 @@ try{
   await page.evaluate(()=>window.__rome.advance(10));await page.screenshot({path:'artifacts/winter.png'});
   await page.evaluate(()=>window.__rome.advance(20));assert.equal(await page.evaluate(()=>window.__rome.getState().result.kind),'success');await page.screenshot({path:'artifacts/result.png'});
   const final=await page.evaluate(()=>JSON.stringify(window.__rome.getState()));
+  await page.locator('#timeline').focus();await page.keyboard.press('Home');assert.equal(await page.evaluate(()=>window.__rome.getState().tick),0);
+  await page.keyboard.press('End');assert.equal(await page.evaluate(()=>JSON.stringify(window.__rome.getState())),final);
   await page.locator('#rewind').click();assert.equal(await page.locator('#outcome').isVisible(),false);assert.ok(await page.evaluate(()=>window.__rome.run.cursor<window.__rome.run.latest));
   await page.evaluate(()=>window.__rome.advance(3));assert.equal(await page.evaluate(()=>JSON.stringify(window.__rome.getState())),final);
   await page.locator('#reviseResult').click();assert.equal(await page.locator('#balance').textContent(),'4');assert.equal(await page.evaluate(()=>JSON.stringify(window.__rome.planner.layout)),starting);

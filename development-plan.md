@@ -27,4 +27,10 @@ The second pass (`0004.png`) adds grain/vegetable variety, sacks and jars, home 
 
 The third pass (`0005.png`) adds irregular paving, cleaner plaster, separate clay roof courses, a columned home variant, larger stores, articulated work poses, contact shading, closer framing, and a full timeline track. The complete browser year/retry/challenge flows and six-state visual check pass. Median winter frame: 30.7 ms at 1× and 27.7 ms at 4× (p95 42.3 / 45.6 ms), with cached secondary views. Production build passes. Fresh review improved from 6.8 to 7.3/10 after corrections.
 
-Next: vary the example town's composition while preserving its budget and successful outcomes; improve olive branching and grain silhouettes; add restrained terrain and facade relief. Departure capture must select the departing resident because another home's recovery toast obscured the evidence. All validation is automated; enjoyment is not claimed as tested by automation.
+The fourth pass (`0006.png`) varies the example town's composition without changing its cost, adds layered olive/cypress crowns, clustered planting, finer cliff stone, contoured pond banks, a cached pond reflection, articulated forearms, winter stubble and stronger warm-window light. The selection ring and numbered household notices clarify departures; the placement ghost uses a consistent green/amber/red material. Roof overlaps, ground texture and direct sunlight were corrected through browser comparisons. A fresh review before the root-cause corrections scored summer 7.2/10; final comparative review is pending.
+
+All 22 headless checks pass, including successful alternative plans and all four challenge examples. The six-state capture passes at 1440×900, with paused / 1× / 4× winter medians of 27.6 / 32.0 / 31.5 ms (p95 32.3 / 46.6 / 44.2 ms). SMAA supplies antialiasing; the redundant canvas MSAA and excess lens texture samples were removed after one measured 33.4 ms regression. Production compilation passes.
+
+The complete browser check also passes for the revised example: placement, move, refund/undo, camera, sound toggle, full year, 1×/4×, pause, timeline keyboard scrubbing, exact rewind/retry, collapse, and all challenge variants.
+
+Next: resolve any important discrepancies from the final comparative review. All validation is automated; enjoyment is not claimed as tested by automation.

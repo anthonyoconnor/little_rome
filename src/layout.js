@@ -64,6 +64,13 @@ export function starterLayout(level='settlement') {
       Object.assign(well,{x:5,z:6,rotation:2});Object.assign(l.objects.filter(b=>b.type==='field')[1],{x:7,z:8,rotation:1});
     }
   }
+  if(level==='settlement'||level==='dry'){
+    // Turn one household toward the shared road; the short northern spur leaves
+    // room for alternative wells. The example spends 76 coins (84 when dry).
+    Object.assign(l.objects.find(b=>b.id==='b13'),{x:9,z:4,rotation:1});
+    Object.assign(l.objects.find(b=>b.id==='b1'),{x:8,z:4});
+    Object.assign(l.objects.find(b=>b.id==='b8'),{x:8,z:3});
+  }
   return l;
 }
 export function warnings(layout) {const net=roadNetwork(layout),out=[]; for(const b of layout.objects.filter(b=>b.type!=='road'))if(!connected(layout,b,net))out.push(`${b.type[0].toUpperCase()+b.type.slice(1)} has no road from its entrance to the village gate.`);

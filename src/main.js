@@ -52,7 +52,7 @@ function pick(hit){
   inspect();
 }
 function inspect(){
-  if(!selection){$('inspector').classList.add('hidden');return;}
+  if(!selection){scene.showRoute(null);$('inspector').classList.add('hidden');return;}
   if(phase!=='planning'){inspectRunning();return;}
   const b=planner.layout.objects.find(b=>b.id===selection.id);if(!b){$('inspector').classList.add('hidden');return;}
   const descriptions={home:'Two adults, a pantry, and a place to come back to. Keep water and food within an easy walk.',field:'A mixed crop garden. Water, tending, and timely harvests make the difference through winter.',well:'A finite water source. Residents must collect every jug and carry it along the roads.',road:'Pale limestone paving. Roads join at their edges and lead to the village entrance.'};
@@ -66,7 +66,7 @@ function inspectRunning(){
   const s=run.state;let html='';
   if(selection.kind==='person'){
     const p=s.people.find(p=>p.id===selection.id);if(!p||p.departed){selection=null;inspect();return;}
-    html=`<div class="eyebrow">A neighbour</div><h2>${p.name}</h2><p>${jobDescription(p,s)}.</p>${p.carry.amount?stat('Carrying',p.carry.amount,8,p.carry.type):'<p>Hands free for the next errand.</p>'}`;
+    html=`<div class="eyebrow">A neighbour · Home ${s.buildings.filter(b=>b.type==='home').findIndex(b=>b.id===p.home)+1}</div><h2>${p.name}</h2><p>${jobDescription(p,s)}.</p>${p.carry.amount?stat('Carrying',p.carry.amount,8,p.carry.type):["depart","arrive"].includes(p.job?.type)?'':'<p>Hands free for the next errand.</p>'}`;
     scene.showRoute(p);
   }else{
     const b=s.buildings.find(b=>b.id===selection.id);if(!b){selection=null;inspect();return;}
@@ -88,7 +88,7 @@ function updateRunUI(){
   $('timeline').max=run.latest;$('timeline').value=run.cursor;$('timeline').style.width=`${Math.max(5,run.latest/YEAR_TICKS*100)}%`;
   $('eventMarkers').innerHTML=s.events.filter(e=>['harvest','departure','cropLoss','shortage'].includes(e.type)).map(e=>`<i style="left:${e.tick/YEAR_TICKS*100}%" title="${e.text}"></i>`).join('');
   const last=s.events.at(-1),recent=last&&s.tick-last.tick<TICKS_PER_DAY*.65;
-  $('eventToast').classList.toggle('hidden',!recent||!!s.result);if(recent)$('eventToast').textContent=last.text;
+  $('eventToast').classList.toggle('hidden',!recent||!!s.result);if(recent){const subject=s.buildings.find(b=>b.id===last.building),number=subject?s.buildings.filter(b=>b.type===subject.type).findIndex(b=>b.id===subject.id)+1:0;$('eventToast').textContent=(subject?`${subject.type[0].toUpperCase()+subject.type.slice(1)} ${number} · `:'')+last.text;}
   $('outcome').classList.toggle('hidden',!s.result);
   if(s.result){const r=s.result;$('outcome').innerHTML=`<div class="eyebrow">${r.kind==='success'?'The first year · complete':r.kind==='collapse'?'Your settlement · abandoned':'The first year · goal unmet'}</div><h2>${r.title}</h2><p>${r.explanation}</p><div class="stat"><span>Occupied homes</span><b>${r.occupied} / 3</b></div>${r.occupied?`<div class="stat"><span>Lowest food reserve</span><b>${r.minFood.toFixed(1)} days</b></div><div class="stat"><span>Lowest water reserve</span><b>${r.minWater.toFixed(1)} days</b></div>`:''}${s.metrics.firstShortage?`<p>First shortage: ${s.metrics.firstShortage.resource}, day ${Math.floor(s.metrics.firstShortage.day)+1}. Rewind to understand why.</p>`:''}<button id="reviseResult">Revise layout</button>`;$('reviseResult').onclick=revise;}
   if(selection)inspectRunning();lastUiTick=s.tick;
