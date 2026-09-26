@@ -1,5 +1,7 @@
 # Little Rome
 
+Follow [the development rules](development-rules.md) for milestones, Git checkpoints, fast automated validation, and progress screenshots. These workflow rules take precedence over conflicting process guidance in design documents or project skills. No human testing will be carried out.
+
 Read [the overview](little-rome-overview.md) and [the gameplay rules](little-rome-gameplay.md) before changing the game. They define the current build-and-watch design; older monthly-turn designs do not apply.
 
 ## Skills

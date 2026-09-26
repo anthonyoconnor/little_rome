@@ -1,7 +1,7 @@
 # Little Rome progress
 
 Keep one screenshot per major change or major milestone iteration, following
-[the development rules](../AGENTS.md#progress-screenshots).
+[the development rules](../development-rules.md#progress-screenshots).
 
 The first screenshot will be `0001.png`. Continue sequentially across milestones
 without overwriting or renumbering earlier screenshots. Add a row when a capture
