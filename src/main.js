@@ -1,6 +1,7 @@
 import './style.css';
 import {Planner,LEVELS,COST,FOOTPRINT,balance,warnings,canStart,canPlace,connected,cells,starterLayout} from './layout.js';
 import {Diorama} from './scene.js';
+import {Playback,TICKS_PER_DAY,YEAR_TICKS,jobDescription,homeProblem,CAPS} from './simulation.js';
 
 const icon=(name)=>`<svg viewBox="0 0 24 24" aria-hidden="true">${{
   road:'<path d="m3 15 9-7 9 7-9 7Z M3 10l9-7 9 7-9 7Z M8 7l10 7 M14 5l-9 8 M15 11l-9 7"/>',
@@ -14,7 +15,7 @@ const icon=(name)=>`<svg viewBox="0 0 24 24" aria-hidden="true">${{
   reset:'<path d="M4 11a8 8 0 1 1 2 6 M4 4v7h7"/>',sound:'<path d="m3 9 5 0 5-5v16l-5-5H3Z M17 8a7 7 0 0 1 0 8 M20 5a12 12 0 0 1 0 14"/>',help:'<path d="M9 8a3 3 0 1 1 4 3c-1 0-1 2-1 3 M12 18h.01"/><circle cx="12" cy="12" r="10"/>'
 }[name]||''}</svg>`;
 const $=id=>document.getElementById(id);
-let planner=new Planner(),tool=null,rotation=0,moveId=null,selection=null,phase='planning',run=null,speed=1,paused=false,toastTimer;
+let planner=new Planner(),tool=null,rotation=0,moveId=null,selection=null,phase='planning',run=null,speed=1,paused=false,toastTimer,lastUiTick=-1,sound=null;
 document.querySelector('#app').innerHTML=`
 <div id="world"></div>
 <div class="overlay">
@@ -51,6 +52,7 @@ function pick(hit){
 }
 function inspect(){
   if(!selection){$('inspector').classList.add('hidden');return;}
+  if(phase!=='planning'){inspectRunning();return;}
   const b=planner.layout.objects.find(b=>b.id===selection.id);if(!b){$('inspector').classList.add('hidden');return;}
   const descriptions={home:'Two adults, a pantry, and a place to come back to. Keep water and food within an easy walk.',field:'A mixed crop garden. Water, tending, and timely harvests make the difference through winter.',well:'A finite water source. Residents must collect every jug and carry it along the roads.',road:'Pale limestone paving. Roads join at their edges and lead to the village entrance.'};
   $('inspector').innerHTML=`<button class="inspector-close" aria-label="Close inspector">×</button><div class="eyebrow">${b.free?'Village entrance':'Your settlement'}</div><h2>${b.type[0].toUpperCase()+b.type.slice(1)}</h2><p>${descriptions[b.type]}</p><div class="stat"><span>Access</span><b>${connected(planner.layout,b)?'Connected':'No road access'}</b></div><div class="stat"><span>Construction</span><b>${b.free?'Supplied by level':COST[b.type]+' coins'}</b></div>${b.free?'':`<div class="actions"><button id="moveBuilding">Move · free</button><button id="removeBuilding">Remove · refund ${COST[b.type]}</button></div>`}`;
@@ -58,20 +60,68 @@ function inspect(){
   if(!b.free){$('moveBuilding').onclick=()=>{setTool(b.type);moveId=b.id;rotation=b.rotation;toast('Choose a new position. R turns the entrance.');};$('removeBuilding').onclick=()=>{planner.remove(b.id);selection=null;updatePlanning();inspect();};}
 }
 
+const stat=(label,n,max,unit='days')=>`<div class="stat"><span>${label}</span><b>${n.toFixed(1)} ${unit}</b></div><div class="meter"><i style="width:${Math.min(100,n/max*100)}%"></i></div>`;
+function inspectRunning(){
+  const s=run.state;let html='';
+  if(selection.kind==='person'){
+    const p=s.people.find(p=>p.id===selection.id);if(!p||p.departed){selection=null;inspect();return;}
+    html=`<div class="eyebrow">A neighbour</div><h2>${p.name}</h2><p>${jobDescription(p,s)}.</p>${p.carry.amount?stat('Carrying',p.carry.amount,8,p.carry.type):'<p>Hands free for the next errand.</p>'}`;
+    scene.showRoute(p);
+  }else{
+    const b=s.buildings.find(b=>b.id===selection.id);if(!b){selection=null;inspect();return;}
+    const num=s.buildings.filter(x=>x.type===b.type).findIndex(x=>x.id===b.id)+1;
+    html=`<div class="eyebrow">${b.connected?'Connected to the village':'No road access'}</div><h2>${b.type[0].toUpperCase()+b.type.slice(1)} ${num}</h2>`;
+    if(b.type==='home')html+=`<p>${homeProblem(b,s)}</p>${stat('Food reserve',b.food,CAPS.homeFood)}${stat('Water reserve',b.water,CAPS.homeWater)}<div class="stat"><span>Household</span><b>${b.status==='preparing'?'Preparing to leave':b.status}</b></div>`;
+    if(b.type==='well')html+=`<p>${b.connected?b.water<5?'The well is low. Rain will help it recover.':'Water is collected here and carried along the roads.':'Its entrance needs a road to the village.'}</p>${stat('Water available',b.water,CAPS.wellWater,'jugs')}<p>Replenishment: ${s.recharge.toFixed(1)} jugs a day.</p>`;
+    if(b.type==='field')html+=`<p>${!b.connected?'The field is isolated. Workers cannot reach it.':b.dead?'The crop has withered. Water and tending can prepare it for replanting.':s.season==='Winter'?'The rows are dormant. Growth and new planting wait for spring.':b.moisture<20?'The soil is dry. Water needs to arrive soon.':b.care<.3?'The crops need a worker to tend them.':'Mixed crops grow with moisture and regular tending.'}</p>${stat('Crop growth',b.growth*100,100,'%')}${stat('Soil moisture',b.moisture,100,'%')}${stat('Stored food',b.food,CAPS.fieldFood,'days')}<p>${b.harvests} harvests gathered this year.</p>`;
+    const e=[...s.events].reverse().find(e=>e.building===b.id);if(e)html+=`<p class="recent-event">Day ${Math.floor(e.day)+1} · ${e.text}</p>`;
+    scene.showRoute(null);
+  }
+  $('inspector').innerHTML=`<button class="inspector-close" aria-label="Close inspector">×</button>${html}`;$('inspector').classList.remove('hidden');$('inspector').querySelector('button').onclick=()=>{selection=null;scene.showRoute(null);inspect();};
+}
+function updateRunUI(){
+  const s=run.state;scene.setState(s);
+  $('seasonSymbol').textContent={Spring:'❧',Summer:'☀',Autumn:'❦',Winter:'☂'}[s.season];$('seasonText').textContent=`${s.season} · Day ${Math.min(14,Math.floor(s.day%14)+1)}`;
+  $('weatherText').textContent=`${s.weather==='Rain'?'Passing rain':s.weather==='Dry spell'?'Dry spell':s.weather==='Overcast'?'Cold, quiet skies':'Gentle weather'} · ${paused?'Paused':run.cursor<run.latest?'Replaying recorded days':'Year one'}`;
+  $('pause').innerHTML=icon(paused?'play':'pause');$('pause').setAttribute('aria-label',paused?'Play':'Pause');document.querySelectorAll('.speed').forEach(b=>b.classList.toggle('active',+b.dataset.speed===speed));
+  $('timeline').max=run.latest;$('timeline').value=run.cursor;$('timeline').style.width=`${Math.max(5,run.latest/YEAR_TICKS*100)}%`;
+  $('eventMarkers').innerHTML=s.events.filter(e=>['harvest','departure','cropLoss','shortage'].includes(e.type)).map(e=>`<i style="left:${e.tick/YEAR_TICKS*100}%" title="${e.text}"></i>`).join('');
+  const last=s.events.at(-1),recent=last&&s.tick-last.tick<TICKS_PER_DAY*.65;
+  $('eventToast').classList.toggle('hidden',!recent||!!s.result);if(recent)$('eventToast').textContent=last.text;
+  $('outcome').classList.toggle('hidden',!s.result);
+  if(s.result){const r=s.result;$('outcome').innerHTML=`<div class="eyebrow">${r.kind==='success'?'The first year · complete':r.kind==='collapse'?'Your settlement · abandoned':'The first year · goal unmet'}</div><h2>${r.title}</h2><p>${r.explanation}</p><div class="stat"><span>Occupied homes</span><b>${r.occupied} / 3</b></div>${r.occupied?`<div class="stat"><span>Lowest food reserve</span><b>${r.minFood.toFixed(1)} days</b></div><div class="stat"><span>Lowest water reserve</span><b>${r.minWater.toFixed(1)} days</b></div>`:''}${s.metrics.firstShortage?`<p>First shortage: ${s.metrics.firstShortage.resource}, day ${Math.floor(s.metrics.firstShortage.day)+1}. Rewind to understand why.</p>`:''}<button id="reviseResult">Revise layout</button>`;$('reviseResult').onclick=revise;}
+  if(selection)inspectRunning();lastUiTick=s.tick;
+}
+function start(){
+  if(phase!=='planning'||!canStart(planner.layout))return;
+  setTool(null);selection=null;run=new Playback(planner.layout);phase='running';speed=1;paused=false;lastUiTick=-1;
+  document.querySelectorAll('.planning').forEach(e=>e.classList.add('hidden'));document.querySelectorAll('.running').forEach(e=>e.classList.remove('hidden'));$('inspector').classList.add('hidden');$('toolHint').classList.add('hidden');$('keysHint').textContent='SPACE pause · select a neighbour to follow an errand';
+  scene.setLayout(planner.layout,false);updateRunUI();
+}
+function revise(){
+  if(!run)return;planner=new Planner(run.initialLayout);run=null;phase='planning';paused=false;selection=null;scene.state=null;scene.showRoute(null);scene.resetSeason();
+  document.querySelectorAll('.planning').forEach(e=>e.classList.remove('hidden'));$('openBrief').classList.add('hidden');document.querySelectorAll('.running').forEach(e=>e.classList.add('hidden'));for(const id of ['outcome','inspector','eventToast'])$(id).classList.add('hidden');$('keysHint').textContent='1–4 build · R rotate · Esc inspect';updatePlanning();
+}
+function togglePause(){if(!run)return;paused=!paused;updateRunUI();}
+function seek(tick){if(!run)return;paused=true;run.seek(tick);scene.snapPeople=true;updateRunUI();}
+
 document.querySelectorAll('[data-tool]').forEach(b=>b.onclick=()=>setTool(tool===b.dataset.tool?null:b.dataset.tool));
 $('undo').onclick=()=>{planner.undo();selection=null;updatePlanning();inspect();};
 $('example').onclick=()=>{planner.example();setTool(null);updatePlanning();};$('resetLayout').onclick=()=>{planner.reset();setTool(null);updatePlanning();};
 $('level').onchange=e=>{planner=new Planner(starterLayout(e.target.value));setTool(null);updatePlanning();};
 $('closeBrief').onclick=()=>{$('brief').classList.add('hidden');$('openBrief').classList.remove('hidden');};$('openBrief').onclick=()=>{$('brief').classList.remove('hidden');$('openBrief').classList.add('hidden');};
 $('cameraLeft').onclick=()=>scene.rotate(-Math.PI/6);$('cameraRight').onclick=()=>scene.rotate(Math.PI/6);$('cameraReset').onclick=()=>scene.resetCamera();
-$('go').onclick=()=>toast('The autonomous year is the next development milestone.');
-$('sound').onclick=()=>toast('Ambient sound is being prepared with the living simulation.');
+$('go').onclick=start;$('revise').onclick=revise;$('pause').onclick=togglePause;
+$('rewind').onclick=()=>seek(run.cursor-3*TICKS_PER_DAY);$('timeline').oninput=e=>seek(+e.target.value);
+document.querySelectorAll('.speed').forEach(b=>b.onclick=()=>{speed=+b.dataset.speed;updateRunUI();});
+$('sound').onclick=async()=>{if(!sound){const {Ambience}=await import('./sound.js');sound=new Ambience();}sound.toggle();$('sound').classList.toggle('sound-on',sound.enabled);$('sound').setAttribute('aria-label',sound.enabled?'Mute sound':'Enable sound');$('sound').title=sound.enabled?'Sound on':'Sound off';};
 addEventListener('keydown',e=>{if(['INPUT','SELECT'].includes(e.target.tagName))return;
   if(e.code==='Escape'){setTool(null);selection=null;inspect();}
   if(e.code==='KeyQ')scene.rotate(-Math.PI/6);if(e.code==='KeyE')scene.rotate(Math.PI/6);
+  if(e.code==='Space'&&phase==='running'){e.preventDefault();togglePause();}
   if(phase==='planning'){if(['1','2','3','4'].includes(e.key))setTool(['road','home','field','well'][+e.key-1]);if(e.code==='KeyR')rotation=(rotation+1)%4;if((e.ctrlKey||e.metaKey)&&e.code==='KeyZ'){e.preventDefault();$('undo').click();}}
 });
 
-try {await scene.load();updatePlanning();$('loading').remove();window.__rome={ready:true,scene,get planner(){return planner;},get phase(){return phase;},getState:()=>null,projectTile:(x,z)=>scene.projectTile(x,z),selectTool:setTool,metrics:()=>scene.metrics()};}
+try {await scene.load();updatePlanning();$('loading').remove();window.__rome={ready:true,scene,get planner(){return planner;},get phase(){return phase;},get run(){return run;},get paused(){return paused;},getState:()=>run?.state,projectTile:(x,z)=>scene.projectTile(x,z),selectTool:setTool,metrics:()=>scene.metrics(),advance:days=>{if(!run)start();paused=true;run.advanceDays(days);scene.snapPeople=true;updateRunUI();return run.state;},seek,revise,start,loadLayout:layout=>{if(run)revise();planner=new Planner(layout);setTool(null);updatePlanning();},select:(id,kind='building')=>{selection={id,kind};inspect();}};}
 catch(error){$('loading').innerHTML=`<h1>Little Rome</h1><p>The landscape could not load.</p><p>${error.message}</p>`;console.error(error);}
-function frame(){scene.render();requestAnimationFrame(frame);}requestAnimationFrame(frame);
+let lastFrame=performance.now();function frame(){const now=performance.now(),dt=Math.min((now-lastFrame)/1000,.2);lastFrame=now;if(run){run.update(dt,speed,paused);if(run.state.result)paused=true;if(run.state.tick!==lastUiTick)updateRunUI();sound?.update(run.state,paused);}scene.render();requestAnimationFrame(frame);}requestAnimationFrame(frame);

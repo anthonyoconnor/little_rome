@@ -54,6 +54,15 @@ export function starterLayout(level='settlement') {
   for(let z=6;z<=7;z++)add('road',6,z);
   add('home',3,3);add('home',6,3);add('home',8,3);
   add('field',2,6,2);add('field',7,6,2);add('well',5,4);
+  if(level==='budget'||level==='terrain'){
+    const homes=l.objects.filter(b=>b.type==='home');homes.forEach((h,i)=>h.x=2+i*2);
+    l.objects=l.objects.filter(b=>!(b.type==='road'&&b.z===5&&(b.x===2||b.x===9)));
+    const well=l.objects.find(b=>b.type==='well');well.x=8;
+    if(level==='terrain'){
+      l.objects=l.objects.filter(b=>!(b.type==='road'&&b.x===8&&b.z===5));
+      Object.assign(well,{x:5,z:6,rotation:2});Object.assign(l.objects.filter(b=>b.type==='field')[1],{x:7,z:8,rotation:1});
+    }
+  }
   return l;
 }
 export function warnings(layout) {const net=roadNetwork(layout),out=[]; for(const b of layout.objects.filter(b=>b.type!=='road'))if(!connected(layout,b,net))out.push(`${b.type[0].toUpperCase()+b.type.slice(1)} has no road from its entrance to the village gate.`);

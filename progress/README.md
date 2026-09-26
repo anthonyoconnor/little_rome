@@ -11,3 +11,4 @@ reproduce the view.
 | Iteration | Screenshot | Milestone or major change | Capture scenario or command |
 | --- | --- | --- | --- |
 | 0001 | [0001.png](0001.png) | M1: Blender diorama and budgeted planning | `npm.cmd run capture`; default example, 1440×900, planning, default camera. |
+| 0002 | [0002.png](0002.png) | M2: autonomous year, seasonal stores, and recorded playback | `node scripts/scenarios.mjs`; example town, winter day 4, paused, 1440×900. |

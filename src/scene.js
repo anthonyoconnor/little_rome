@@ -93,6 +93,8 @@ export class Diorama {
     this.people.add(g);const r={g,parts};this.personMap.set(p.id,r);return r;
   }
   setState(state){this.state=state;this.planning=false;this.grid.visible=false;this.markers.visible=false;if(this.ghost)this.ghost.visible=false;}
+  showRoute(p){if(this.routeLine){this.scene.remove(this.routeLine);this.routeLine.geometry.dispose();this.routeLine.material.dispose();this.routeLine=null;}if(!p?.path?.length)return;const pts=[{x:p.x,z:p.z},...p.path.slice(p.pathIndex)].map(n=>this.world(n).setY(.15));this.routeLine=new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),new THREE.LineBasicMaterial({color:'#f8d586',transparent:true,opacity:.85}));this.scene.add(this.routeLine);}
+  resetSeason(){this.scene.background.set('#c2ccc1');this.scene.fog.color.copy(this.scene.background);this.floor.material.color.copy(this.scene.background);this.sun.color.set('#ffe4b0');this.sun.intensity=3.5;this.ambient.intensity=2;this.rain.visible=false;for(const {m,color,roughness}of this.materials.values()){m.color.copy(color);m.roughness=roughness;if(m.name==='Window glow')m.emissiveIntensity=.1;}}
   applyState(){
     const s=this.state;if(!s)return;
     const seen=new Set();for(const p of s.people){if(p.departed)continue;seen.add(p.id);const r=this.personMap.get(p.id)||this.person(p);r.g.position.copy(this.world(p));r.g.position.y=.10;
@@ -107,13 +109,15 @@ export class Diorama {
       if(b.type==='field'){r.crops.visible=!b.dead&&s.season!=='Winter';r.crops.scale.y=.08+.92*(b.growth||0);r.crops.rotation.z=b.moisture<15?.16:0;r.stores.visible=b.food>1;}
     }
     const winter=s.season==='Winter',summer=s.season==='Summer',autumn=s.season==='Autumn',wet=s.weather==='Rain';
-    const seasonColor=new THREE.Color(winter?'#9eacae':autumn?'#d5c5a5':summer?'#d4c7a4':'#c2ccc1');this.scene.background.lerp(seasonColor,.08);this.scene.fog.color.copy(this.scene.background);this.floor.material.color.copy(this.scene.background);
-    this.sun.color.lerp(new THREE.Color(winter?'#b6ccdc':autumn?'#ffcd86':'#ffe4b0'),.06);this.sun.intensity=THREE.MathUtils.lerp(this.sun.intensity,winter?1.1:wet?1.7:3.5,.08);
-    this.ambient.intensity=THREE.MathUtils.lerp(this.ambient.intensity,winter?1.4:2,.08);
+    const index=['Spring','Summer','Autumn','Winter'].indexOf(s.season),blend=THREE.MathUtils.smoothstep(s.day%14,0,1.2),previous=Math.max(0,index-1);
+    const backgrounds=['#c2ccc1','#d4c7a4','#d5bca1','#879eac'],lights=['#ffe4b0','#ffe5b6','#ffcf90','#aabfd2'];
+    this.scene.background.set(backgrounds[previous]).lerp(new THREE.Color(backgrounds[index]),blend);this.scene.fog.color.copy(this.scene.background);this.floor.material.color.copy(this.scene.background);
+    this.sun.color.set(lights[previous]).lerp(new THREE.Color(lights[index]),blend);this.sun.intensity=winter?1.1:wet?1.7:3.5;
+    this.ambient.intensity=winter?1.4:2;
     this.rain.visible=wet;this.rain.position.y=-(s.tick%40)*.09;
     for(const {m,color,roughness}of this.materials.values()){
       const target=color.clone();if(m.name.startsWith('Foliage')||m.name==='Meadow ground'){if(summer)target.lerp(new THREE.Color('#938b3b'),.25);if(autumn)target.lerp(new THREE.Color('#9a702e'),.38);if(winter)target.multiplyScalar(.69);}
-      m.color.lerp(target,.12);if(m.name.includes('limestone')||m.name.includes('Limestone')||m.name.includes('terracotta'))m.roughness=wet?.34:roughness;
+      m.color.copy(target);if(m.name.includes('limestone')||m.name.includes('Limestone')||m.name.includes('terracotta'))m.roughness=wet?.34:roughness;
       if(m.name==='Window glow')m.emissiveIntensity=winter?3:.1;
     }
   }
