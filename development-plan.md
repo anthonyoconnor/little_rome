@@ -29,6 +29,13 @@ Outcome: a supplementary close-up resident concept, implemented as more detailed
 - Obtain a fresh read-only critique and save one actual in-game completion capture as the next progress image.
 - Evidence: resident concept and generation prompt saved; detailed Blender models, a 16-bone rig and 17-track walk imported; eight real job/activity close-ups and a browser motion video captured. Hand contact, home/crop pouring, stance/swing feet, harvest hand travel, pause and exact rewind pass. Full-year/retry/challenge checks, all six visual states, 22 headless checks and production build pass. `0008.png` records the revised people and pouring action. Normal-view winter medians: 28.4 ms paused, 32.5 ms at 1×, 32.1 ms at 4×.
 
+## M5 — Landscape detail references · complete
+Outcome: six supplementary close-up concept sheets preserving the original town art direction for pond water, shoreline, trees, low planting, exposed terrain and paths/field edges.
+- Save all six generated references in `concept_art/landscape` with original-reference provenance and exact prompts.
+- Inspect each sheet for subject coverage, detail and continuity with the existing miniature style; verify image files and dimensions automatically.
+- This milestone prepares concept references; it does not change the running game or require a game progress screenshot.
+- Evidence: six sheets generated from the original seasonal references, visually inspected and saved with a gallery, exact prompts and provenance. All six PNG files pass signature/dimension checks (1536×1024 or 1672×941); copied files match the generated originals by SHA-256. The original town art and game files are unchanged.
+
 ## Visual iteration record
 The first M3 visual checkpoint adds textured Blender surfaces, smooth roof tiles, denser planting, irregular cliff stones, seasonal lighting, animated residents, and drought feedback. The six-state browser check passes, including pause, imported animation, a second camera angle, close inspection, and a compact viewport. Winter median frame: 30.1 ms at 1440×900; p95 34.1 ms. Record this iteration as `0003.png`.
 
@@ -52,4 +59,4 @@ The M4 resident pass (`0008.png`) follows the supplementary close-up concept wit
 
 Fresh read-only review rose from 5.5 to 7.5/10 after correcting skin weights, garment seams, prop openings, camera framing and work poses. The final reviewed images show no major broken geometry or impossible prop contact. The people remain more stylized than the close-up concept: softer facial anatomy, varied hair masses and more natural cloth folds are further art polish. Wheat can partially obscure the hands during harvesting. Normal-view performance is retained using Blender lower detail meshes, merged material draws and cached paused poses.
 
-The requested resident milestone is complete. See [validation.md](validation.md) for evidence and remaining fidelity limits. All validation is automated; enjoyment is not claimed as tested by automation.
+The resident milestone and landscape-reference preparation are complete. The new [landscape gallery](concept_art/landscape/README.md) records detailed targets for the next landscape implementation. See [validation.md](validation.md) for game evidence and remaining fidelity limits. All game validation is automated; enjoyment is not claimed as tested by automation.

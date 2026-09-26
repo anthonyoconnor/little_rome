@@ -1,0 +1,79 @@
+{
+  "tool": "Built-in image_gen",
+  "created": "2026-09-26",
+  "verification": "All six PNG signatures and dimensions checked; workspace copies match original generated output SHA-256 hashes.",
+  "images": [
+    {
+      "file": "01-pond-water-v1.png",
+      "title": "Pond water",
+      "source": "C:\\Users\\shant\\.codex\\generated_images\\01a0dc26-213a-75c2-ad18-50c7f73be43a\\exec-14c58c5f-6f2a-4d12-bda1-71b8c44b3a35.png",
+      "width": 1536,
+      "height": 1024,
+      "bytes": 3121669,
+      "sha256": "82768638d603087fbccfc32240e7eefd305bfb4fb71c5a1009bc8a1ef890c760"
+    },
+    {
+      "file": "02-pond-shore-v1.png",
+      "title": "Pond shore and aquatic planting",
+      "source": "C:\\Users\\shant\\.codex\\generated_images\\01a0dc26-213a-75c2-ad18-50c7f73be43a\\exec-b2e00907-f7be-4e31-a608-1a366c6c646d.png",
+      "width": 1672,
+      "height": 941,
+      "bytes": 2988491,
+      "sha256": "d054103fc3a49faf16719cdce8d37287faa28f7a69c3e3463a3f42c01dc0934d"
+    },
+    {
+      "file": "03-olive-and-cypress-v1.png",
+      "title": "Olive trees and cypress",
+      "source": "C:\\Users\\shant\\.codex\\generated_images\\01a0dc26-213a-75c2-ad18-50c7f73be43a\\exec-d8669583-1ed9-4621-bee9-b498e36d3535.png",
+      "width": 1672,
+      "height": 941,
+      "bytes": 2953038,
+      "sha256": "40ac58f9b2cbd7d4e3bddebf46d1932cfde7ade5a6f2bc868f9a0b2acf486eb3"
+    },
+    {
+      "file": "04-groundcover-and-herbs-v1.png",
+      "title": "Groundcover, herbs and meadow patches",
+      "source": "C:\\Users\\shant\\.codex\\generated_images\\01a0dc26-213a-75c2-ad18-50c7f73be43a\\exec-355c9bba-ad80-40dc-a894-1023f084b545.png",
+      "width": 1672,
+      "height": 941,
+      "bytes": 3254550,
+      "sha256": "113c025136241594236b6c22d3596d2f6f3326b04c0322c97c84b872aaa8ef40"
+    },
+    {
+      "file": "05-cliff-rock-and-soil-v1.png",
+      "title": "Cliff, rock and soil layers",
+      "source": "C:\\Users\\shant\\.codex\\generated_images\\01a0dc26-213a-75c2-ad18-50c7f73be43a\\exec-ceb97b83-f772-416c-b020-0b47df8a0dfe.png",
+      "width": 1672,
+      "height": 941,
+      "bytes": 3124216,
+      "sha256": "382f63ba96c55499dfe1908351485eb808073a97b3ed3fa367841336373cf735"
+    },
+    {
+      "file": "06-paths-and-field-borders-v1.png",
+      "title": "Stone paths and field borders",
+      "source": "C:\\Users\\shant\\.codex\\generated_images\\01a0dc26-213a-75c2-ad18-50c7f73be43a\\exec-6d270b43-0070-4520-8261-acd295a15031.png",
+      "width": 1536,
+      "height": 1024,
+      "bytes": 3609292,
+      "sha256": "bb57e734041f93276b00363414609d353c4497ce8e89b2795695782427753d6f"
+    }
+  ],
+  "references": [
+    {
+      "file": "C:\\Users\\shant\\Documents\\Prototypes\\little_rome\\concept_art\\ChatGPT Image Sep 25, 2026, 09_46_03 PM.png",
+      "sha256": "1594be3a429113273ca4daa4b0a038a6e0993c98fb77230ce37d879d6c0ed809"
+    },
+    {
+      "file": "C:\\Users\\shant\\Documents\\Prototypes\\little_rome\\concept_art\\ChatGPT Image Sep 25, 2026, 09_47_42 PM.png",
+      "sha256": "4a2b9de9595d4555e31c14cb0e6d5622437aefe0fab58ca776cba1b7e63f6e5b"
+    },
+    {
+      "file": "C:\\Users\\shant\\Documents\\Prototypes\\little_rome\\concept_art\\ChatGPT Image Sep 25, 2026, 09_46_40 PM.png",
+      "sha256": "a46e177c297faa751fd0cc85a24afdd95139ae481af89e9e5a18a25db21cb07d"
+    },
+    {
+      "file": "C:\\Users\\shant\\Documents\\Prototypes\\little_rome\\concept_art\\ChatGPT Image Sep 25, 2026, 09_46_16 PM.png",
+      "sha256": "70670f9cdc6bd9d290fbbd7e3c89b24383f92a0938a4c17bfe535b08d37b03c1"
+    }
+  ]
+}
