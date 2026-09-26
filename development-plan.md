@@ -23,4 +23,6 @@ Outcome: refine lighting, assets, animation, seasonal feedback, and restrained c
 ## Current next action
 The first M3 visual checkpoint adds textured Blender surfaces, smooth roof tiles, denser planting, irregular cliff stones, seasonal lighting, animated residents, and drought feedback. The six-state browser check passes, including pause, imported animation, a second camera angle, close inspection, and a compact viewport. Winter median frame: 30.1 ms at 1440×900; p95 34.1 ms. Record this iteration as `0003.png`.
 
-Next: strengthen wet surface reflections and work poses, introduce more visible crop variety, and complete a fresh critique against the original art. All validation is automated; enjoyment is not claimed as tested by automation.
+The second pass (`0004.png`) adds grain/vegetable variety, sacks and jars, home details, stronger work poses, physical clay roof shells, and cached reflections. All six visual states, alternate/close views, pause, and small-window controls pass. Live winter median 30.8 ms; p95 41.1 ms. Fresh review: 7.0/10, with visible improvement and regressions in puddle repetition and roof relief.
+
+Next: integrate wet paving, restore curved roof highlights, and improve foliage shading. All validation is automated; enjoyment is not claimed as tested by automation.

@@ -14,7 +14,12 @@ def material(name,color,rough=.85,texture=False):
     bs=m.node_tree.nodes.get('Principled BSDF');bs.inputs['Base Color'].default_value=(*color,1);bs.inputs['Roughness'].default_value=rough
     if texture:
         rng=np.random.default_rng(len(MATS)+14);n=256;y,x=np.mgrid[0:n,0:n]
-        noise=rng.normal(0,.065,(n,n))+np.sin(x*.13+np.cos(y*.05)*2)*.038+np.sin(y*.29)*.03+np.sin(x*.025+y*.02)*.04
+        def cloud(resolution):
+            grid=rng.normal(0,1,(resolution+1,resolution+1));q=np.linspace(0,resolution,n,endpoint=False);ix=q.astype(int);f=q-ix;f=f*f*(3-2*f)
+            low=grid[ix[:,None],ix[None,:]]*(1-f[None,:])+grid[ix[:,None],ix[None,:]+1]*f[None,:]
+            high=grid[ix[:,None]+1,ix[None,:]]*(1-f[None,:])+grid[ix[:,None]+1,ix[None,:]+1]*f[None,:]
+            return low*(1-f[:,None])+high*f[:,None]
+        noise=rng.normal(0,.045,(n,n))+cloud(7)*.065+cloud(27)*.038+cloud(63)*.020
         ar=np.ones((n,n,4),dtype=np.float32)
         for i,c in enumerate(color):ar[:,:,i]=np.clip(c*(1+noise),0,1)
         im=bpy.data.images.new(name+'_surface',width=n,height=n);im.pixels.foreach_set(ar.ravel());im.pack()
@@ -26,7 +31,7 @@ def material(name,color,rough=.85,texture=False):
 plaster=material('Warm lime plaster',(.86,.79,.64),texture=True)
 ivory=material('Cut limestone',(.82,.75,.60),texture=True)
 stones=[material('Limestone '+str(i),(.52+i*.047,.44+i*.046,.32+i*.043),texture=True) for i in range(7)]
-roofs=[material('Fired terracotta '+str(i),(.59+i*.038,.205+i*.023,.075+i*.014),texture=True)for i in range(6)]
+roofs=[material('Fired terracotta '+str(i),(.47+i*.039,.22+i*.02,.115+i*.012),texture=True)for i in range(6)]
 wood=material('Weathered chestnut',(.20,.115,.047),texture=True)
 woodlight=material('Cut wood',(.34,.23,.10),texture=True)
 dark=material('Deep recess',(.047,.036,.022))
@@ -39,7 +44,8 @@ silvers=[material('Olive leaves '+str(i),(.12+i*.026,.19+i*.024,.075+i*.018))for
 gold=material('Ripe wheat',(.62,.40,.09));stem=material('Crop stems',(.27,.32,.055))
 flower=[material('Petal '+str(i),c)for i,c in enumerate([(.85,.59,.1),(.80,.77,.60),(.39,.22,.48)])]
 water=material('Water',(.045,.29,.31),.18)
-linen=material('Woven linen',(.84,.77,.58));skin=material('Sun warmed skin',(.53,.29,.15));hair=material('Dark hair',(.07,.041,.021))
+linen=material('Woven linen',(.84,.77,.58),texture=True);skin=material('Sun warmed skin',(.53,.29,.15));hair=material('Dark hair',(.07,.041,.021))
+sack=material('Woven grain sacks',(.56,.41,.23),texture=True)
 sash=material('Madder sash',(.37,.083,.035));window=material('Window glow',(.95,.54,.13),.35)
 bs=MATS[window].node_tree.nodes.get('Principled BSDF');bs.inputs['Emission Color'].default_value=(1,.32,.035,1);bs.inputs['Emission Strength'].default_value=.35
 
@@ -97,8 +103,19 @@ def roof(m,c,width,depth,eave,rise):
                 # Individual curved Roman roof tiles. Their overlap catches light.
                 a=(xx,yy-side*depth/rows*.28,zz+rise/rows*.56)
                 b=(xx,yy+side*depth/rows*.31,zz-rise/rows*.62)
-                mat=random.choice(roofs);m.tube(a,b,width/cols*.51,mat,n=12)
-                end=tuple(b[k]+(a[k]-b[k])*.1 for k in range(3));m.tube(end,b,width/cols*.54,mat,n=12)
+                mat=random.choice(roofs);a=Vector(a);b=Vector(b);across=Vector((1,0,0));up=Vector((0,side*rise/(depth/2),1)).normalized();half=width/cols*.49
+                face=[a-across*half,a+across*half,b+across*half,b-across*half]
+                m.face(face if side==1 else list(reversed(face)),mat)
+                # Tegula pan and a thin, open imbrex cap: actual clay shells,
+                # rather than full cylinders that resemble round roof logs.
+                radius=width/cols*.23;arcA=[];arcB=[]
+                for k in range(9):
+                    theta=k*math.pi/8;offset=across*(half+math.cos(theta)*radius)+up*math.sin(theta)*radius
+                    arcA.append(a+offset);arcB.append(b+offset)
+                for k in range(8):
+                    face=[arcA[k],arcB[k],arcB[k+1],arcA[k+1]]
+                    m.face(face if side==1 else list(reversed(face)),mat,True)
+                    m.tube(arcB[k],arcB[k+1],.0035,mat,n=4)
     for i in range(cols):m.tube((x-width/2+i*width/cols,y,z+eave+rise+.03),(x-width/2+(i+1.04)*width/cols,y,z+eave+rise+.03),.08,roofs[3],n=10)
     for xx in [x-width/2,x+width/2]:
         for side in [-1,1]:m.tube((xx,y,z+eave+rise),(xx,y+side*depth/2,z+eave),.045,woodlight,n=6)
@@ -115,18 +132,21 @@ def olive(m,x,y,z,s=1):
     for i in range(9):
         a=i*2.4;xx=x+math.cos(a)*.52*s;yy=y+math.sin(a)*.52*s;zz=z+(1.02+random.random()*.43)*s
         m.tube((x-.04*s,y,z+.71*s),(xx,yy,zz),.044*s,wood,r2=.018*s)
-        m.ellipsoid((xx,yy,zz),(.27*s,.28*s,.20*s),silvers[0],8,5,.18)
-        for j in range(210):
+        # Open, branching crowns: no globular filler hidden beneath leaf cards.
+        for branch in range(4):
+            angle=a+branch*1.57;end=(xx+math.cos(angle)*.3*s,yy+math.sin(angle)*.3*s,zz+random.uniform(-.09,.2)*s)
+            m.tube((xx,yy,zz-.08*s),end,.017*s,wood,r2=.003*s,n=5)
+        for j in range(420):
             b=random.random()*math.tau;r=random.random()**.5*.38*s
-            m.leaf((xx+math.cos(b)*r,yy+math.sin(b)*r,zz+random.uniform(-.25,.25)*s),random.uniform(.048,.095)*s,random.choice(silvers),random.random()*math.tau)
+            m.leaf((xx+math.cos(b)*r,yy+math.sin(b)*r,zz+random.uniform(-.20,.22)*s),random.uniform(.035,.063)*s,random.choice(silvers),random.random()*math.tau)
 def cypress(m,x,y,z,s=1):
     m.tube((x,y,z),(x,y,z+1.6*s),.055*s,wood,r2=.015*s)
     m.ellipsoid((x,y,z+1.22*s),(.18*s,.18*s,1.02*s),cypress_greens[0],12,16,.045)
-    for i in range(950):
+    for i in range(1800):
         h=random.uniform(.24,2.24);r=math.sin((h-.20)/2.12*math.pi)**.7*.25*s;a=i*2.4
         rad=random.uniform(.55,1)*r
         xx=x+math.cos(a)*rad;yy=y+math.sin(a)*rad;zz=z+h*s
-        m.leaf((xx,yy,zz),random.uniform(.035,.065)*s,cypress_greens[i%5],a)
+        m.leaf((xx,yy,zz),random.uniform(.018,.039)*s,cypress_greens[i%5],a)
         if i%30==0:m.tube((x,y,zz-.08*s),(xx,yy,zz+.03*s),.008*s,wood,r2=.003*s,n=4)
 def tuft(m,x,y,z,s=1):
     for i in range(6):
@@ -152,7 +172,10 @@ for side in range(4):
         p=[(a,-6.78,zz),(6.78,a,zz),(a,6.78,zz),(-6.78,a,zz)][side]
         breadth=random.uniform(.18,.57);height=random.uniform(.15,.44);depth=random.uniform(.14,.29)
         dims=(breadth,depth,height) if side%2==0 else (depth,breadth,height)
-        m.ellipsoid(p,dims,random.choice(stones),8,5,.22)
+        m.ellipsoid(p,dims,random.choice(stones),10,6,.13)
+        if rock%2==0:
+            crumb=[p[0],p[1],p[2]-.16];crumb[1 if side%2==0 else 0]+=[-.10,.10,.10,-.10][side]
+            m.ellipsoid(crumb,(.07,.07,.085),stones[2],6,4,.17)
     # Trailing roots and ivy down all four exposed faces.
     for i in range(50):
         t=random.uniform(-6.7,6.7);length=random.uniform(.4,3.1)
@@ -209,10 +232,27 @@ m=Mesh('Cypress');cypress(m,0,0,0,1);m.finish()
 m=Mesh('Shrub');shrub(m,0,0,0,1);m.finish()
 m=Mesh('Rock');m.ellipsoid((0,0,.26),(.46,.49,.53),stones[5],9,6,.22);m.finish()
 
-m=Mesh('Road')
-m.box((0,0,.013),(.99,.99,.04),soil)
-for i in range(4):
-    for j in range(4):m.box((-.375+i*.25+random.uniform(-.007,.007),-.375+j*.25+random.uniform(-.007,.007),.042),(.235+random.uniform(-.015,.007),.234,.057),random.choice(stones[3:]),random.uniform(-.035,.035))
+for variant in range(3):
+    m=Mesh('Road' if variant==0 else 'Road'+str(variant))
+    m.box((0,0,.013),(.998,.998,.04),soil)
+    nodes=[[(i*.25-.5+(random.uniform(-.034,.034) if i not in [0,4] else 0),j*.25-.5+(random.uniform(-.034,.034) if j not in [0,4] else 0)) for j in range(5)]for i in range(5)]
+    for i in range(4):
+        for j in range(4):
+            quad=[nodes[i][j],nodes[i+1][j],nodes[i+1][j+1],nodes[i][j+1]];cx=sum(p[0]for p in quad)/4;cy=sum(p[1]for p in quad)/4
+            top=[]
+            for k,p in enumerate(quad):
+                for adjacent in [quad[(k-1)%4],quad[(k+1)%4]]:top.append((cx+(p[0]*.91+adjacent[0]*.09-cx)*.96,cy+(p[1]*.91+adjacent[1]*.09-cy)*.96,.076))
+            mat=random.choice(stones[3:]);m.face(top,mat)
+            lower=[(cx+(p[0]-cx)*1.035,cy+(p[1]-cy)*1.035,.057)for p in top]
+            for k in range(8):m.face([top[k],lower[k],lower[(k+1)%8],top[(k+1)%8]],mat)
+    m.finish()
+# A reusable patch of shallow rainwater, rendered with a cached planar reflection.
+m=Mesh('WetRoad')
+for x,y,rx,ry in [(-.18,.08,.27,.20),(.25,-.27,.19,.13),(.3,.33,.14,.16)]:
+    pts=[]
+    for i in range(22):
+        a=i*math.tau/22;r=random.uniform(.82,1.08);pts.append((x+math.cos(a)*rx*r,y+math.sin(a)*ry*r,0))
+    for i in range(len(pts)):m.face([(x,y,0),pts[i],pts[(i+1)%len(pts)]],water)
 m.finish()
 
 m=Mesh('Home')
@@ -257,8 +297,31 @@ for i in range(22):
     if abs(x+.23)<.28 and z<1:continue
     m.box((x,-.505,z),(.07+random.random()*.1,.01,.04),stones[5])
 m.finish()
+m=Mesh('HomeDetails0')
+for i in range(30):
+    z=.20+i*.035;x=.80+math.sin(i*.45)*.025
+    m.tube((x,-.58,z),(x+.02,-.58,z+.05),.008,wood,n=4)
+    m.leaf((x-.07,-.63,z),.095,greens[i%7],i*.8)
+m.finish()
+m=Mesh('HomeDetails1')
+for x in [-.5,-.10,.28]:pot(m,x,.92,.13,.65,True)
+# A worn ochre canvas shade on one facade, supported by its existing pergola.
+for i in range(12):
+    x=-.81+i*.137;m.face([(x,-.98,.99),(x+.13,-.98,.99),(x+.13,-.36,1.10),(x,-.36,1.10)],linen)
+m.finish()
+m=Mesh('HomeDetails2')
+for y in [-.3,.05,.4,.72]:
+    pot(m,.92,y,.13,.48,True)
+    for z in [.40,.80,1.20]:m.leaf((.87,y,z),.13,greens[3],y*3+z)
+m.box((-.53,-.73,.28),(.28,.22,.28),woodlight)
+for i in range(5):m.ellipsoid((-.6+i*.03,-.73,.46),(.03,.03,.06),gold,6,4)
+m.finish()
 m=Mesh('HomeStores')
-for i in range(6):pot(m,.47+(i%3)*.16,-.86+(i//3)*.18,.14,.53)
+for i in range(3):pot(m,.43+i*.18,-.85,.14,.63)
+for i in range(3):
+    x=-.67+i*.15;y=-.93
+    m.ellipsoid((x,y,.26),(.075,.065,.12),sack,10,6)
+    m.tube((x,y,.33),(x,y,.4),.027,sack,r2=.016,n=8)
 m.finish()
 m=Mesh('ClosedShutters');m.box((.45,-.60,.89),(.36,.04,.39),wood)
 for side in [-1,1]:
@@ -285,7 +348,11 @@ m=Mesh('Field');m.box((0,0,.025),(2.87,2.87,.075),soil)
 for row in range(8):m.tube((-1.28,-1.22+row*.34,.062),(1.28,-1.22+row*.34,.062),.062,earth,n=6)
 for side in [-1,1]:
     for i in range(8):m.tube((-1.44+i*.41,side*1.44,.03),(-1.44+i*.41,side*1.44,.40),.025,woodlight,n=5)
-    for h in [.18,.34]:m.tube((-1.44,side*1.44,h),(1.44,side*1.44,h),.018,woodlight,n=5)
+    for h in [.18,.34]:
+        if side==-1:
+            m.tube((-1.44,side*1.44,h),(-.24,side*1.44,h),.018,woodlight,n=5)
+            m.tube((.24,side*1.44,h),(1.44,side*1.44,h),.018,woodlight,n=5)
+        else:m.tube((-1.44,side*1.44,h),(1.44,side*1.44,h),.018,woodlight,n=5)
     for i in range(8):m.tube((side*1.44,-1.44+i*.41,.03),(side*1.44,-1.44+i*.41,.40),.025,woodlight,n=5)
     for h in [.18,.34]:m.tube((side*1.44,-1.44,h),(side*1.44,1.44,h),.018,woodlight,n=5)
 for x in [.88,1.30]:m.box((x,1.10,.36),(.04,.05,.65),wood)
@@ -304,14 +371,49 @@ for row in range(12):
             m.ellipsoid((x+bend+(-1 if j%2 else 1)*.012,y,h-.035+j*.017),(.015,.012,.033),gold,6,4)
             m.tube((x+bend,y,h+j*.017),(x+bend+(-1 if j%2 else 1)*.04,y+.01,h+.07+j*.017),.002,gold,n=3)
 m.finish()
+m=Mesh('Vegetables')
+for row in range(9):
+    for col in range(10):
+        x=-1.22+col*.267+random.uniform(-.025,.025);y=-1.22+row*.30+random.uniform(-.025,.025)
+        if x>.7 and y>.7:continue
+        for j in range(11):
+            a=j*2.4+col;length=random.uniform(.10,.19);h=random.uniform(.12,.29)
+            p=(x+math.cos(a)*length,y+math.sin(a)*length,h)
+            m.tube((x,y,.02),p,.006,stem,n=4)
+            u=math.cos(a);v=math.sin(a);w=.055
+            edge=[]
+            for k in range(7):
+                t=k/6;width=math.sin(t*math.pi)*w;zz=.025+(h-.025)*math.sin(t*math.pi*.57)
+                edge.append([(x+u*length*t-v*width,y+v*length*t+u*width,zz),(x+u*length*t,y+v*length*t,zz+.014*math.sin(t*math.pi)),(x+u*length*t+v*width,y+v*length*t-u*width,zz)])
+            for k in range(6):
+                for side in range(2):m.face([edge[k][side],edge[k+1][side],edge[k+1][side+1],edge[k][side+1]],greens[(j+col)%7],True)
+        if row%3==0:m.ellipsoid((x,y,.055),(.043,.04,.055),roofs[3],8,5)
+m.finish()
 m=Mesh('FieldStores')
-for i in range(8):pot(m,.83+(i%3)*.18,.81+(i//3)*.18,.11,.62)
+for i in range(4):pot(m,.88+(i%2)*.22,.91+(i//2)*.22,.11,.75)
+for i in range(5):
+    x=.80+(i%3)*.21;y=.47+(i//3)*.22
+    m.ellipsoid((x,y,.28),(.09,.075,.17),sack,10,6);m.tube((x,y,.39),(x,y,.48),.024,sack,r2=.037,n=8)
 m.finish()
 
 # Resident rig: separately named body parts keep walking and carrying tied to state.
-m=Mesh('ResidentBody');m.tube((0,0,.15),(0,0,.35),.083,linen,r2=.055,n=14);m.tube((0,0,.275),(0,0,.294),.061,sash,n=12);m.ellipsoid((0,0,.424),(.043,.045,.057),skin,12,8);m.ellipsoid((0,.008,.446),(.046,.042,.04),hair,12,6);m.ellipsoid((0,-.043,.421),(.014,.014,.018),skin,8,5);m.finish()
+m=Mesh('ResidentBody')
+rings=[]
+for z,rx,ry in [(.145,.080,.053),(.21,.071,.047),(.275,.049,.034),(.32,.062,.035),(.36,.058,.028)]:
+    rings.append([(math.cos(i*math.tau/24)*(rx+.004*math.sin(i*3.14/2)),math.sin(i*math.tau/24)*(ry+.004*math.sin(i*3.14/2)),z+.004*math.cos(i*1.57))for i in range(24)])
+for j in range(len(rings)-1):
+    for i in range(24):m.face([rings[j][i],rings[j][(i+1)%24],rings[j+1][(i+1)%24],rings[j+1][i]],linen,True)
+m.tube((0,0,.27),(0,0,.285),.054,sash,r2=.056,n=16)
+m.tube((0,0,.35),(0,0,.401),.018,skin,n=12)
+m.ellipsoid((0,0,.424),(.037,.039,.052),skin,16,10)
+m.ellipsoid((0,.009,.448),(.040,.037,.030),hair,14,8)
+m.ellipsoid((0,-.039,.42),(.010,.012,.014),skin,10,6)
+for side in [-1,1]:
+    m.ellipsoid((side*.036,0,.425),(.007,.011,.014),skin,8,5)
+    m.ellipsoid((side*.016,-.035,.434),(.004,.003,.0035),dark,6,4)
+m.finish()
 for name,side in [('ArmL',-1),('ArmR',1)]:
-    m=Mesh(name);m.tube((0,0,0),(side*.015,-.012,-.13),.019,skin,r2=.016,n=7);m.tube((0,0,.015),(0,0,-.058),.026,linen,r2=.022,n=7);m.finish()
+    m=Mesh(name);m.tube((0,0,0),(side*.015,-.012,-.074),.018,skin,r2=.014,n=10);m.tube((side*.015,-.012,-.074),(side*.013,-.025,-.127),.014,skin,r2=.010,n=10);m.ellipsoid((side*.013,-.025,-.14),(.012,.009,.019),skin,10,6);m.tube((0,0,.015),(side*.01,-.006,-.048),.026,linen,r2=.021,n=10);m.finish()
 for name in ['LegL','LegR']:
     m=Mesh(name);m.tube((0,0,0),(0,0,-.14),.019,skin,n=7);m.ellipsoid((0,-.021,-.135),(.024,.044,.015),wood,8,4);m.finish()
 m=Mesh('WaterJug');pot(m,0,0,0,.40);m.tube((0,0,.095),(0,0,.10),.043,water,n=10);m.finish()
