@@ -25,4 +25,6 @@ The first M3 visual checkpoint adds textured Blender surfaces, smooth roof tiles
 
 The second pass (`0004.png`) adds grain/vegetable variety, sacks and jars, home details, stronger work poses, physical clay roof shells, and cached reflections. All six visual states, alternate/close views, pause, and small-window controls pass. Live winter median 30.8 ms; p95 41.1 ms. Fresh review: 7.0/10, with visible improvement and regressions in puddle repetition and roof relief.
 
-Next: integrate wet paving, restore curved roof highlights, and improve foliage shading. All validation is automated; enjoyment is not claimed as tested by automation.
+The third pass (`0005.png`) adds irregular paving, cleaner plaster, separate clay roof courses, a columned home variant, larger stores, articulated work poses, contact shading, closer framing, and a full timeline track. The complete browser year/retry/challenge flows and six-state visual check pass. Median winter frame: 30.7 ms at 1× and 27.7 ms at 4× (p95 42.3 / 45.6 ms), with cached secondary views. Production build passes. Fresh review improved from 6.8 to 7.3/10 after corrections.
+
+Next: vary the example town's composition while preserving its budget and successful outcomes; improve olive branching and grain silhouettes; add restrained terrain and facade relief. Departure capture must select the departing resident because another home's recovery toast obscured the evidence. All validation is automated; enjoyment is not claimed as tested by automation.

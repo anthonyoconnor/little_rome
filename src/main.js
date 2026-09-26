@@ -30,7 +30,7 @@ document.querySelector('#app').innerHTML=`
   <aside id="inspector" class="inspector paper hidden"></aside>
   <div class="season paper running hidden"><span class="symbol" id="seasonSymbol">❧</span><div><strong id="seasonText">Spring · Day 1</strong><small id="weatherText">Soft light · Year one</small></div></div>
   <button class="revise paper running hidden" id="revise">↶ &nbsp; Return to planning</button>
-  <div class="playback paper running hidden"><button id="rewind" aria-label="Rewind three days" title="Rewind three days">${icon('rewind')}</button><button id="pause" aria-label="Pause">${icon('pause')}</button><div class="separator"></div><button class="speed active" data-speed="1">1×</button><button class="speed" data-speed="4">4×</button><div class="separator"></div><div class="timeline"><input id="timeline" type="range" min="0" max="0" step="1" value="0" aria-label="Recorded timeline"><div class="timeline-events" id="eventMarkers"></div><div class="timeline-labels"><span>Spring</span><span>Summer</span><span>Autumn</span><span>Winter</span></div></div></div>
+  <div class="playback paper running hidden"><button id="rewind" aria-label="Rewind three days" title="Rewind three days">${icon('rewind')}</button><button id="pause" aria-label="Pause">${icon('pause')}</button><div class="separator"></div><button class="speed active" data-speed="1">1×</button><button class="speed" data-speed="4">4×</button><div class="separator"></div><div class="timeline"><div class="timeline-track"><input id="timeline" type="range" min="0" max="0" step="1" value="0" aria-label="Recorded timeline"></div><div class="timeline-events" id="eventMarkers"></div><div class="timeline-labels"><span>Spring</span><span>Summer</span><span>Autumn</span><span>Winter</span></div></div></div>
   <div id="eventToast" class="event-toast hidden"></div><aside id="outcome" class="outcome paper hidden"></aside>
   <div class="utility"><button id="cameraLeft" class="round" aria-label="Rotate camera left" title="Rotate left · Q">${icon('left')}</button><button id="cameraReset" class="round" aria-label="Reset camera" title="Reset camera">${icon('reset')}</button><button id="cameraRight" class="round" aria-label="Rotate camera right" title="Rotate right · E">${icon('right')}</button><button id="sound" class="round" aria-label="Enable sound" title="Sound off">${icon('sound')}</button></div>
   <div class="camera-hint"><span>DRAG TO ORBIT &nbsp; · &nbsp; SCROLL TO EXPLORE</span><span id="keysHint">1–4 build &nbsp; · &nbsp; R rotate &nbsp; · &nbsp; Esc inspect</span></div>
@@ -96,7 +96,7 @@ function updateRunUI(){
 function start(){
   if(phase!=='planning'||!canStart(planner.layout))return;
   setTool(null);selection=null;run=new Playback(planner.layout);phase='running';speed=1;paused=false;lastUiTick=-1;
-  document.querySelectorAll('.planning').forEach(e=>e.classList.add('hidden'));document.querySelectorAll('.running').forEach(e=>e.classList.remove('hidden'));$('inspector').classList.add('hidden');$('toolHint').classList.add('hidden');$('keysHint').textContent='SPACE pause · select a neighbour to follow an errand';
+  document.querySelectorAll('.planning').forEach(e=>e.classList.add('hidden'));document.querySelectorAll('.running').forEach(e=>e.classList.remove('hidden'));$('inspector').classList.add('hidden');$('toolHint').classList.add('hidden');$('keysHint').textContent='SPACE pause · Click a resident to follow';
   scene.setLayout(planner.layout,false);updateRunUI();
 }
 function revise(){

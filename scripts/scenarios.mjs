@@ -24,5 +24,10 @@ try{
   // A no-well failure: capture the grace period and verify departure is reversible in history.
   await page.evaluate(()=>{window.__rome.revise();const l=structuredClone(window.__rome.planner.layout);l.objects=l.objects.filter(b=>b.type!=='well');window.__rome.loadLayout(l);window.__rome.start();window.__rome.advance(4.5);});await page.screenshot({path:'artifacts/drought.png'});
   await page.evaluate(()=>window.__rome.advance(15));assert.equal(await page.evaluate(()=>window.__rome.getState().result.kind),'collapse');await page.locator('#rewind').click();assert.ok(await page.evaluate(()=>window.__rome.getState().people.some(p=>!p.departed)));
+  await page.evaluate(()=>window.__rome.revise());
+  for(const level of ['dry','terrain','budget']){
+    await page.locator('#level').selectOption(level);await page.locator('#go').click();await page.evaluate(()=>window.__rome.advance(56));
+    assert.equal(await page.evaluate(()=>window.__rome.getState().result.kind),'success',level);await page.locator('#reviseResult').click();
+  }
   assert.deepEqual(errors,[]);console.log(JSON.stringify({ok:true,fullYear:true,retry:true,rewind:true,collapse:true,metrics:await page.evaluate(()=>window.__rome.metrics())}));
 }finally{await browser.close();}

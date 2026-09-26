@@ -15,13 +15,16 @@ try{
  await page.evaluate(()=>window.__rome.advance(14.4));await capture('summer-final');
  await page.evaluate(()=>{window.__rome.scene.rotate(Math.PI/2);});await capture('alternate-angle');
  await page.evaluate(()=>{const s=window.__rome.scene;s.camera.position.set(-8,9,10);s.controls.target.set(0,.3,0);s.controls.update();});await capture('close-final');
- await page.evaluate(()=>{window.__rome.scene.resetCamera();window.__rome.advance(17);});await capture('autumn-final');
- await page.evaluate(()=>window.__rome.advance(10.3));await capture('winter-final');
+ await page.evaluate(()=>{window.__rome.scene.resetCamera();window.__rome.advance(23.95);});await capture('autumn-final');
+ await page.evaluate(()=>window.__rome.advance(3.35));await capture('winter-final');
  const paused=await page.evaluate(()=>({state:window.__rome.getState(),rain:Array.from(window.__rome.scene.rain.geometry.attributes.position.array.slice(0,18))}));await frames(12);assert.deepEqual(await page.evaluate(()=>({state:window.__rome.getState(),rain:Array.from(window.__rome.scene.rain.geometry.attributes.position.array.slice(0,18))})),paused,'Pause freezes residents, supplies, rain, and weather');
  await page.evaluate(()=>{window.__rome.scene.frames=[];});await frames(125);const performance=await page.evaluate(()=>window.__rome.metrics());assert.ok(performance.medianMs<33,JSON.stringify(performance));
- await page.locator('#pause').click();await page.evaluate(()=>{window.__rome.scene.frames=[];});await frames(125);const livePerformance=await page.evaluate(()=>window.__rome.metrics());assert.ok(livePerformance.medianMs<33,JSON.stringify(livePerformance));await page.locator('#pause').click();
+ await page.locator('#pause').click();await page.evaluate(()=>{window.__rome.scene.frames=[];});await frames(125);const livePerformance=await page.evaluate(()=>window.__rome.metrics());assert.ok(livePerformance.medianMs<33,JSON.stringify(livePerformance));
+ await page.locator('[data-speed="4"]').click();await page.evaluate(()=>{window.__rome.scene.frames=[];});await frames(125);const fastPerformance=await page.evaluate(()=>window.__rome.metrics());assert.ok(fastPerformance.medianMs<33,JSON.stringify(fastPerformance));await page.locator('#pause').click();
  await page.evaluate(async()=>{const {starterLayout}=await import('/src/layout.js');const l=starterLayout('dry');l.objects=l.objects.filter(b=>b.id!=='b17');window.__rome.loadLayout(l);window.__rome.start();window.__rome.advance(27.65);});
  assert.ok(await page.evaluate(()=>window.__rome.getState().buildings.some(b=>b.type==='field'&&b.dead)));await capture('drought-final');
+ await page.evaluate(()=>window.__rome.advance(3.45));assert.ok(await page.evaluate(()=>window.__rome.getState().people.some(p=>p.job?.type==='depart'&&!p.departed)));await capture('departure-final');
+ await page.evaluate(()=>window.__rome.advance(1));await frames(3);assert.ok(await page.evaluate(()=>window.__rome.getState().buildings.some(b=>b.status==='abandoned'&&window.__rome.scene.buildingMap.get(b.id).shutters.visible)));await capture('abandoned-final');
  await page.setViewportSize({width:900,height:720});await page.evaluate(()=>window.__rome.revise());await capture('compact-viewport');assert.ok(await page.locator('#go').isVisible());assert.ok(await page.locator('[data-tool=home]').isVisible());
- assert.deepEqual(errors,[]);await fs.writeFile('artifacts/visual-report.json',JSON.stringify({ok:true,performance,livePerformance,render,states:['planning','spring','summer','autumn','winter','drought'],motion:true,pause:true,alternateAngle:true,closeView:true,compactViewport:true},null,2));console.log(JSON.stringify({ok:true,performance,livePerformance,render}));
+ assert.deepEqual(errors,[]);await fs.writeFile('artifacts/visual-report.json',JSON.stringify({ok:true,performance,livePerformance,fastPerformance,render,states:['planning','spring','summer','autumn','winter','drought'],motion:true,pause:true,alternateAngle:true,closeView:true,compactViewport:true},null,2));console.log(JSON.stringify({ok:true,performance,livePerformance,fastPerformance,render}));
 }finally{await browser.close();}
